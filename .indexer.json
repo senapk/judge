@@ -42,6 +42,12 @@
                 "posts_per_row": 3,
                 "empty_fig": null
             }
+        },
+        {
+            "action": "posts",
+            "dir": "_posts",
+            "base_raw_remote": "https://raw.githubusercontent.com/senapk/senapk.github.io/master/base",
+            "default_date": "1984-04-25"
         }
     ]
 }

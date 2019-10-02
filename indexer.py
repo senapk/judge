@@ -124,7 +124,8 @@ class Config:
                 {
                     "action": "posts",
                     "dir": "_posts",
-                    "base_raw_remote": "https://raw.githubusercontent.com/qxcodefup/arcade/master/base"
+                    "base_raw_remote": "https://raw.githubusercontent.com/senapk/senapk.github.io/master/base",
+                    "default_date": "1984-04-25"
                 }
             ]
         }
@@ -523,7 +524,7 @@ class View:
     def __make_table_entry(item_list, out_file, empty_fig, posts_per_row):
         data = []
         for item in item_list:
-            thumb = Thumbs.get_thumb(item)
+            thumb = Thumbs.get_thumb_full(item)
             if thumb:
                 thumb = Util.get_directions(out_file, thumb)
             else:
@@ -577,20 +578,30 @@ class Thumbs:
         for item in itens:
             Thumbs.make(item, width, height)
 
+    # return .thumb/hook/Readme.jpg
     @staticmethod
     def get_thumb(item):
         if item.cover:
-            root, file = Util.split_path(item.cover)
-            return os.path.join(item.hook_full, os.path.join(root, "." + file))
+            path = os.path.join(".thumb", item.hook)
+            path = os.path.join(path, item.filename[:-2] + "jpg")
+            return os.path.normpath(path)
+        return None
+
+    # return "arcade/base/.thumb/hook/Readme.jpg"
+    @staticmethod
+    def get_thumb_full(item):
+        if item.cover:
+            return os.path.normpath(os.path.join(item.base_full, Thumbs.get_thumb(item)))
         return None
 
     @staticmethod
     def make(item, width, height):
-        thumb_full = Thumbs.get_thumb(item)
+        thumb_full = Thumbs.get_thumb_full(item)
         if thumb_full is None:
             print("  warning: thumb skipping, missing cover on", item.path_full)
             return
         cover_full = os.path.join(item.hook_full, item.cover)
+        Util.create_dirs_if_needed(thumb_full)
         if not os.path.isfile(thumb_full) or os.path.getmtime(cover_full) > os.path.getmtime(thumb_full):
             print("  making thumb for", item.path_full)
             cmd = ['convert', cover_full, '-resize', str(width) + 'x' + str(height) + '>', thumb_full]
@@ -599,24 +610,25 @@ class Thumbs:
 
 class Posts:
     @staticmethod
-    def write_post(base, item, posts_dir, remote):
+    def write_post(base, item, posts_dir, default_date, remote):
         if item.date == None:
-            print("  warning: Date missing, using 1984-04-25 on", item.path_full)
-            item.date = "1984-04-25"
+            print("  warning: Date missing, using", default_date,  "on", item.path_full)
+            item.date = default_date
         if item.cover == None:
             print("  warning: Cover missing, skypping", item.path_full)
             return
-
+        if remote[-1] == "/":
+            remote = remote[:-1]
         out = io.StringIO()
         out.write("---\nlayout: post\n")
         out.write("title: " + item.title + '\n')
-        out.write("image: " + remote + base + "/" + item.hook + "/" + item.cover + "\n")
-        out.write("optimized_image: " + remote + Thumbs.get_thumb(item) + "\n")
+        out.write("image: " + remote + "/" + item.hook + "/" + item.cover + "\n")
+        out.write("optimized_image: " + remote + "/" +  Thumbs.get_thumb(item) + "\n")
         if item.subtitle != None:
             out.write("subtitle: " + item.subtitle + "\n")
             out.write("description: " + item.subtitle + "\n")
         if item.category != None:
-            out.write("category: " + item.category + "\n")
+            out.write("category: " + item.category_id + "\n")
         if len(item.tags) > 0:
             out.write("tags:\n")
             for t in item.tags:
@@ -631,16 +643,16 @@ class Posts:
 
         regex = r"!\[(.*?)\]\(([^:]*?)\)"
         text = re.sub(regex, "", text, 1, re.MULTILINE) #removendo capa
-        subst = "![\\1](" + remote + item.dir_full + os.sep + "\\2)"
+        subst = "![\\1](" + remote + "/" + item.hook + "/" + "\\2)"
         text = re.sub(regex, subst, text, 0, re.MULTILINE)
 
-        name = item.date + "-" + Util.get_md_link(item.category) + "-" + Util.get_md_link(item.title) + "-@" + item.hook
+        name = item.date + "-" + Util.get_md_link(item.category_id) + "-" + Util.get_md_link(item.title) + "-@" + item.hook
         with open(posts_dir + os.sep + name +  ".md", "w") as f:
             f.write(text)
 
     @staticmethod
     def remove_old_posts(item, posts_dir):
-        files = os.path.listdir(posts_dir)
+        files = os.listdir(posts_dir)
         files = [os.path.join(posts_dir, x) for x in files]
         files = [x for x in files if os.path.isfile(x)]
         for file in files:
@@ -650,10 +662,10 @@ class Posts:
                     os.remove(file)
 
     @staticmethod
-    def generate(base, itens, posts_dir, remote):
+    def generate(base, itens, posts_dir, default_date, remote):
         for item in itens:
             Posts.remove_old_posts(item, posts_dir)
-            Posts.write_post(base, item, posts_dir, remote)
+            Posts.write_post(base, item, posts_dir, default_date, remote)
 
 class Main:
     @staticmethod
@@ -739,10 +751,10 @@ class Main:
             Config.check_keys(options, ["action", "intro", "file", "sorting"])
             Summary.generate(Tree.generate(itens, options["sorting"]), options["path"])
 
-        elif action == "post":
+        elif action == "posts":
             print("Generating posts")
-            Config.check_keys(options, ["action", "dir", "base_raw_remote"])
-            Posts.generate(base, itens, options["dir"], options["base_raw_remote"])
+            Config.check_keys(options, ["action", "dir", "default_date", "base_raw_remote"])
+            Posts.generate(base, itens, options["dir"], options["default_date"], options["base_raw_remote"])
         else:
             print("  error: action", options["action"], "not found")
 
