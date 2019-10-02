@@ -5,12 +5,12 @@
             "action": "load_folder"
         },
         {
-            "action": "links",
-            "dir": ".indexer/links"
-        },
-        {
             "action": "board", 
             "file": ".indexer/board.md"
+        },
+        {
+            "action": "links",
+            "dir": ".indexer/links"
         },
         {
             "action": "thumbs", 
@@ -19,8 +19,8 @@
         },
         {
             "action": "index", 
-            "intro": null,
-            "file": ".indexer/cat_index.md",
+            "intro": "intro.md",
+            "file": "categorias.md",
             "sorting": {
                 "orphan": "No category",
                 "group_by": "category",
@@ -30,8 +30,8 @@
         },
         {
             "action": "view", 
-            "file": ".indexer/cat_view.md",
-            "intro": null,
+            "intro": "intro.md",
+            "file": "view.md",
             "sorting": {
                 "orphan": "No category",
                 "group_by": "category",

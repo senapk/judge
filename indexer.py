@@ -6,6 +6,7 @@ import os
 import argparse
 import re
 import subprocess
+import csv
 
 import io
 
@@ -96,8 +97,8 @@ class Config:
                 },
                 {
                     "action": "index", 
-                    "file": ".indexer/cat_index.md",
                     "intro": None,
+                    "file": ".indexer/cat_index.md",
                     "sorting": {
                         "orphan": "No category",
                         "group_by": "category",
@@ -107,8 +108,8 @@ class Config:
                 },
                 {
                     "action": "view", 
-                    "file": ".indexer/cat_view.md",
                     "intro": None,
+                    "file": ".indexer/cat_view.md",
                     "sorting": {
                         "orphan": "No category",
                         "group_by": "category",
@@ -123,7 +124,7 @@ class Config:
                 {
                     "action": "posts",
                     "dir": "_posts",
-                    "raw_base_remote": "raw_github"
+                    "base_raw_remote": "https://raw.githubusercontent.com/qxcodefup/arcade/master/base"
                 }
             ]
         }
@@ -167,7 +168,7 @@ class Config:
             return Config.get_default_symbols()
         with open(symbols_file, "r") as f:
             symbols = json.load(f)
-            print("Loading symbols file")
+            print("Loading symbols")
             keys = [x for x in Config.get_default_symbols().keys()]
             Config.check_keys(symbols, keys)
             return symbols
@@ -186,8 +187,8 @@ class Config:
                 exit(1)
 
 
-class CategoryData:
-    def __init__(self, qtd, name, label, description):
+class Category:
+    def __init__(self, qtd=0, name="", label="", description=""):
         self.qtd = qtd
         self.name = name
         self.label = label
@@ -195,6 +196,9 @@ class CategoryData:
 
     def get_entry(self):
         return str(self.qtd) + "," + self.name + "," + self.label + "," + self.description
+
+    def __lt__(self, other):
+        return self.name < other.name
 
     def __str__(self):
         return self.label
@@ -234,6 +238,7 @@ class Item:
         self.filename = path.split(os.sep)[-1]                             # Readme.md
         self.cover = self.__get_cover()                                    # cover.jpg ou ../001/cover.jpg
         self.fulltitle = self.__get_fulltitle(symbols)
+        self.category = Category()
 
     def __parse_title(self, symbols, first_line):
         words = first_line.split(" ")
@@ -243,18 +248,16 @@ class Item:
             del words[0]
         words = [x for x in words if not Util.only_hashtags(x)]
         self.tags, words = Util.split_list(words, symbols["tag"])
-        self.category, words = Util.split_list(words, symbols["category"])
+        self.category_id, words = Util.split_list(words, symbols["category"])
         self.date, words = Util.split_list(words, symbols["date"])
         self.author, words = Util.split_list(words, symbols["author"])
         parts = " ".join(words).split(symbols["subtitle"])
         self.title = parts[0].strip() if len(parts) > 0 else ''
         self.subtitle = parts[1].strip() if len(parts) > 1 else None
-        self.category = Util.get_first(self.category)
+        self.category_id = Util.get_first(self.category_id)
         self.date = Util.get_first(self.date)
         self.author = Util.get_first(self.author)
 
-    def set_category_data(self, category_data: CategoryData):
-        self.category_data = category_data
 
     def __get_cover(self):
         regex = r"!\[(.*?)\]\(([^:]*?)\)"
@@ -271,8 +274,8 @@ class Item:
         out = ''
         if self.date:
             out += symbols["date"] + self.date + ' '
-        if self.category:
-            out += symbols["category"] + self.category + ' '
+        if self.category_id:
+            out += symbols["category"] + self.category_id + ' '
         out += self.title
         if self.subtitle:
             out += ' ' + symbols["subtitle"] + ' ' + self.subtitle
@@ -285,8 +288,8 @@ class Item:
     def __str__(self):
         out = "@" + str(self.hook) + " "
         out += "[title: " + str(self.title) + "]"
-        if self.category:
-            out += "[cat: " + self.category + "]"
+        if self.category_id:
+            out += "[cat: " + self.category_id + "]"
         if self.date:
             out += "[date: " + self.date + "]"
         if len(self.tags) > 0:
@@ -330,33 +333,28 @@ class Folder:
 
     @staticmethod
     def load_categories_file(categories_file):
+        print("Loading categories")
         cat_dict = {}
         if os.path.isfile(categories_file):
-            with open(categories_file) as f:
-                lines = f.readlines()
-                for line in lines:
-                    if line == "\n":
-                        continue
-                    if line[-1] == "\n":
-                        line = line[:-1]
-                    data = line.split(",")
-                    cat, label, description = [x.strip() for x in data][1:]
-                    qtd = 0
+            with open(categories_file, 'r') as f:
+                spamreader = csv.reader(f, delimiter=',', quotechar='"')
+                for row in spamreader:
+                    qtd, cat, label, description = row
                     if cat not in cat_dict:
-                        cat_dict[cat] = CategoryData(qtd, cat, label, description)
+                        cat_dict[cat] = Category(0, cat, label, description)
         return cat_dict
 
     @staticmethod
     def merge_categories(itens, cat_dict):
         sorting = Config.get_default_sorting()
-        sorting["group_by"] = "category"
+        sorting["group_by"] = "category_id"
         tree = Tree.generate(itens, sorting)
         for key in tree.keys():
             qtd = len(tree[key])
             if qtd == 0:
                 continue
             if key not in cat_dict:
-                cat_dict[key] = CategoryData(qtd, key, key, "")
+                cat_dict[key] = Category(qtd, key, key, "")
             else:
                 cat_dict[key].qtd += qtd
 
@@ -365,17 +363,18 @@ class Folder:
         first = [x for x in cat_dict if cat_dict[x].qtd != 0]  # elementos com qtd > 0
         second = [x for x in cat_dict if cat_dict[x].qtd == 0]
         with open(categories_file, "w") as out:
+            write = csv.writer(out, delimiter=',', quotechar='"')
             for key in sorted(first):  # ordena pelo nome da categoria
                 x = cat_dict[key]
-                out.write(x.get_entry() + "\n")
+                write.writerow([x.qtd, x.name, x.label, x.description])
             for key in sorted(second):
                 x = cat_dict[key]
-                out.write(x.get_entry() + "\n")
+                write.writerow([x.qtd, x.name, x.label, x.description])
 
     @staticmethod
     def set_categories_on_itens(itens, cat_dict):
         for item in itens:
-            item.set_category_data(cat_dict[item.category])
+            item.category = cat_dict[item.category_id]
 
 
 class Board:
@@ -434,7 +433,6 @@ class Board:
 class Links:
     @staticmethod
     def generate(itens, links_dir):
-        print("Generating links")
         if not os.path.isdir(links_dir):
             os.makedirs(links_dir)
         for item in itens:
@@ -484,7 +482,7 @@ class Index:
         readme_text = io.StringIO()
         for key in sorted(tree.keys()):
             item_list = tree[key]
-            readme_text.write("\n## " + key + "\n\n")
+            readme_text.write("\n## " + str(key) + "\n\n")
             for item in item_list:
                 item_path = item.path_full + "#" + Util.get_md_link(item.crude_title)
                 entry = "- [" + item.title.strip() + "](" + Util.get_directions(out_file, item_path) + ")\n"
@@ -562,7 +560,7 @@ class View:
 
         for key in sorted(tree.keys()):
             item_list = tree[key]
-            view_text.write("\n## " + key + "\n\n")
+            view_text.write("\n## " + str(key) + "\n\n")
             text = View.__make_table_entry(item_list, out_file, empty_fig, posts_per_row)
             view_text.write(text)
     
@@ -575,7 +573,6 @@ class View:
 class Thumbs:
     @staticmethod
     def generate(itens, width, height):
-        print("Generating thumbs")
         itens.sort(key=lambda x: x.hook)
         for item in itens:
             Thumbs.make(item, width, height)
@@ -599,6 +596,64 @@ class Thumbs:
             cmd = ['convert', cover_full, '-resize', str(width) + 'x' + str(height) + '>', thumb_full]
             subprocess.run(cmd)
 
+
+class Posts:
+    @staticmethod
+    def write_post(base, item, posts_dir, remote):
+        if item.date == None:
+            print("  warning: Date missing, using 1984-04-25 on", item.path_full)
+            item.date = "1984-04-25"
+        if item.cover == None:
+            print("  warning: Cover missing, skypping", item.path_full)
+            return
+
+        out = io.StringIO()
+        out.write("---\nlayout: post\n")
+        out.write("title: " + item.title + '\n')
+        out.write("image: " + remote + base + "/" + item.hook + "/" + item.cover + "\n")
+        out.write("optimized_image: " + remote + Thumbs.get_thumb(item) + "\n")
+        if item.subtitle != None:
+            out.write("subtitle: " + item.subtitle + "\n")
+            out.write("description: " + item.subtitle + "\n")
+        if item.category != None:
+            out.write("category: " + item.category + "\n")
+        if len(item.tags) > 0:
+            out.write("tags:\n")
+            for t in item.tags:
+                out.write("  - " + t + "\n")
+        if item.author != None:
+            out.write("author: " + item.author + "\n")
+        out.write("---\n")
+        warning_msg = ("<!-- DON'T EDIT THIS FILE, GENERATED BY SCRIPT -->\n") * 5
+        out.write(warning_msg)
+        out.write(item.content)
+        text = out.getvalue()
+
+        regex = r"!\[(.*?)\]\(([^:]*?)\)"
+        text = re.sub(regex, "", text, 1, re.MULTILINE) #removendo capa
+        subst = "![\\1](" + remote + item.dir_full + os.sep + "\\2)"
+        text = re.sub(regex, subst, text, 0, re.MULTILINE)
+
+        name = item.date + "-" + Util.get_md_link(item.category) + "-" + Util.get_md_link(item.title) + "-@" + item.hook
+        with open(posts_dir + os.sep + name +  ".md", "w") as f:
+            f.write(text)
+
+    @staticmethod
+    def remove_old_posts(item, posts_dir):
+        files = os.path.listdir(posts_dir)
+        files = [os.path.join(posts_dir, x) for x in files]
+        files = [x for x in files if os.path.isfile(x)]
+        for file in files:
+            if file.endswith("-@" + item.hook):
+                if os.path.getmtime(item.path) > os.path.getmtime(file):
+                    print("  replacing post", file, "with new content'")
+                    os.remove(file)
+
+    @staticmethod
+    def generate(base, itens, posts_dir, remote):
+        for item in itens:
+            Posts.remove_old_posts(item, posts_dir)
+            Posts.write_post(base, item, posts_dir, remote)
 
 class Main:
     @staticmethod
@@ -668,19 +723,26 @@ class Main:
 
         elif action == "index":
             print("Generating index")
+            Main.load_intro(options["intro"], options["file"])
             Config.check_keys(options, ["action", "intro", "file", "sorting"])
             Index.generate(Tree.generate(itens, options["sorting"]), options["file"])
 
         elif action == "view":
             print("Generating photo board") # todo, se nao houver .thumb, carrega imagem
+            Main.load_intro(options["intro"], options["file"])
             Config.check_keys(options, ["action", "intro", "file", "sorting", "viewing"])
             View.generate(Tree.generate(itens, options["sorting"]), options["file"], options["viewing"])
 
         elif action == "summary":
             print("Generating summary")
+            Main.load_intro(options["intro"], options["file"])
             Config.check_keys(options, ["action", "intro", "file", "sorting"])
             Summary.generate(Tree.generate(itens, options["sorting"]), options["path"])
 
+        elif action == "post":
+            print("Generating posts")
+            Config.check_keys(options, ["action", "dir", "base_raw_remote"])
+            Posts.generate(base, itens, options["dir"], options["base_raw_remote"])
         else:
             print("  error: action", options["action"], "not found")
 
