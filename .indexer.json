@@ -2,22 +2,15 @@
     "base": "base",
     "execute": [
         {
-            "action": "run",
-            "cmds":[
-                ["cmd", "arg", "arg"],
-                ["cmd", "arg", "arg"]
-            ]
-        },
-        {
             "action": "load_folder"
-        },
-        {
-            "action": "board", 
-            "file": ".indexer/board.md"
         },
         {
             "action": "links",
             "dir": ".indexer/links"
+        },
+        {
+            "action": "board", 
+            "file": ".indexer/board.md"
         },
         {
             "action": "thumbs", 
@@ -26,104 +19,29 @@
         },
         {
             "action": "index", 
+            "intro": null,
             "file": ".indexer/cat_index.md",
             "sorting": {
                 "orphan": "No category",
                 "group_by": "category",
                 "sort_by": "fulltitle",
-                "reverse_sort": False
+                "reverse_sort": false
             }
         },
         {
             "action": "view", 
             "file": ".indexer/cat_view.md",
+            "intro": null,
             "sorting": {
                 "orphan": "No category",
                 "group_by": "category",
                 "sort_by": "fulltitle",
-                "reverse_sort": False
+                "reverse_sort": false
             },
             "viewing": {
                 "posts_per_row": 3,
-                "empty_fig": None
+                "empty_fig": null
             }
-        },
-        {
-            "action": "posts",
-            "dir": "_posts",
-            "raw_base_remote": "raw_github"
         }
     ]
 }
-
-{
-    "base": "base",
-    "execute":[
-        {
-            "action": "load_itens"
-        },
-        {
-            "action": "board", 
-            "file": ".indexer/board.md"
-        },
-        {
-            "action": "thumbs",
-            "dir": ".indexer/thumbs",
-            "width": 320,
-            "height": 180
-        },
-        {
-            "action": "links",
-            "dir": ".indexer/links"
-        },
-        {
-            "action": "index", 
-            "path": "categorias.md",
-            "intro" :"intro.md",
-            "sorting":{
-                "orphan": "Sem categoria",
-                "group_by"  : "category",
-                "sort_by" : "fulltitle",
-                "reverse_sort": false
-            }
-        }, 
-        {
-            "action": "index", 
-            "path": "tags.md",
-            "intro" :"intro.md",
-            "sorting":{
-                "orphan": "Sem tag",
-                "group_by"  : "tags",
-                "sort_by" : "fulltitle",
-                "reverse_sort": false
-            }
-        }, 
-        {            
-            "action": "view", 
-            "path": "view.md",
-            "thumbs": ".indexer/thumbs",
-            "intro" :"intro.md",
-            "sorting":{
-                "orphan": "sem tag",
-                "group_by": "category",
-                "sort_by" : "fulltitle",
-                "reverse_sort": false
-            },
-            "viewing":{ 
-                "empty_fig" : null, 
-                "posts_per_row"   : 4
-            }
-        }, 
-        {
-            "action": "summary", 
-            "path": "summary.md", 
-            "intro": "intro.md",
-            "sorting":{
-                "orphan": "Sem tag",
-                "group_by": "category",
-                "sort_by" : "fulltitle",
-                "reverse_sort": false
-            }
-        }
-    ]
-  }

@@ -4,9 +4,8 @@
 import json
 import os
 import argparse
-import subprocess
 import re
-from shutil import rmtree
+import subprocess
 
 import io
 
@@ -29,8 +28,17 @@ class Util:
 
     @staticmethod
     def split_path(path):
-        vet = Util.normpath(path).split(os.path.sep)
+        path = Util.normpath(path)
+        vet = path.split(os.path.sep)
+        if len(vet) == 1:
+            return ".", path
         return os.sep.join(vet[0:-1]), vet[-1]
+
+    @staticmethod
+    def create_dirs_if_needed(path):
+        root, file = Util.split_path(path)
+        if not os.path.isdir(root):
+            os.makedirs(root)
 
     @staticmethod
     def get_md_link(title):
@@ -65,7 +73,7 @@ class Config:
             "execute": [
                 {
                     "action": "run",
-                    "cmds":[
+                    "cmds": [
                         ["cmd", "arg", "arg"],
                         ["cmd", "arg", "arg"]
                     ]
@@ -89,6 +97,7 @@ class Config:
                 {
                     "action": "index", 
                     "file": ".indexer/cat_index.md",
+                    "intro": None,
                     "sorting": {
                         "orphan": "No category",
                         "group_by": "category",
@@ -99,6 +108,7 @@ class Config:
                 {
                     "action": "view", 
                     "file": ".indexer/cat_view.md",
+                    "intro": None,
                     "sorting": {
                         "orphan": "No category",
                         "group_by": "category",
@@ -130,7 +140,6 @@ class Config:
         }
         return symbols
 
-
     @staticmethod
     def get_default_sorting():
         return {"orphan": "orphan", "group_by": "category", "sort_by": "fulltitle", "reverse_sort": False}
@@ -138,7 +147,6 @@ class Config:
     @staticmethod
     def get_default_viewing():
         return {"empty_fig": None, "posts_per_row": 3}
-
 
     @staticmethod
     def load_cfg(config_file):
@@ -149,7 +157,7 @@ class Config:
             cfg = json.load(f)
             cfg["base"] = Util.normpath(cfg["base"])
             keys = [x for x in Config.get_default_cfg().keys()]
-            Config.check(cfg, keys)
+            Config.check_keys(cfg, keys)
             return cfg
         
     @staticmethod
@@ -161,7 +169,7 @@ class Config:
             symbols = json.load(f)
             print("Loading symbols file")
             keys = [x for x in Config.get_default_symbols().keys()]
-            Config.check(symbols, keys)
+            Config.check_keys(symbols, keys)
             return symbols
 
     @staticmethod
@@ -185,13 +193,16 @@ class CategoryData:
         self.label = label
         self.description = description
 
+    def get_entry(self):
+        return str(self.qtd) + "," + self.name + "," + self.label + "," + self.description
+
     def __str__(self):
-        return self.qtd + ":" + self.name + ":" + self.label + ":" + self.description
+        return self.label
+
 
 class Item:
 
     fulltitle: str
-    category: Category
 
     @staticmethod
     def normalize_file(readme_path):
@@ -293,13 +304,14 @@ class Folder:
             print("  error: base dir is missing")
             exit(1)
 
-        categories_file = os.path.join(base, ".categories.cvs")
+        categories_file = os.path.join(base, ".categories.csv")
         symbols = Config.load_symbols(os.path.join(base, ".symbols.json"))
         itens = Folder.load_itens(base, symbols)
         cat_dict = Folder.load_categories_file(categories_file)
         Folder.merge_categories(itens, cat_dict)
         Folder.save_categories_on_file(cat_dict, categories_file)
         Folder.set_categories_on_itens(itens, cat_dict)
+        return itens
 
     @staticmethod
     def load_itens(base, symbols):
@@ -327,7 +339,7 @@ class Folder:
                         continue
                     if line[-1] == "\n":
                         line = line[:-1]
-                    data = line.split(":")
+                    data = line.split(",")
                     cat, label, description = [x.strip() for x in data][1:]
                     qtd = 0
                     if cat not in cat_dict:
@@ -350,15 +362,15 @@ class Folder:
 
     @staticmethod
     def save_categories_on_file(cat_dict, categories_file):
-        first = [x for x in cat_dict if cat_dict[x]["qtd"] != 0]  # elementos com qtd > 0
-        second = [x for x in cat_dict if cat_dict[x]["qtd"] == 0]
+        first = [x for x in cat_dict if cat_dict[x].qtd != 0]  # elementos com qtd > 0
+        second = [x for x in cat_dict if cat_dict[x].qtd == 0]
         with open(categories_file, "w") as out:
             for key in sorted(first):  # ordena pelo nome da categoria
                 x = cat_dict[key]
-                out.write("%d : %s : %s : %s" % (x["qtd"], x["cat"], x["label"], x["description"]) + "\n")
+                out.write(x.get_entry() + "\n")
             for key in sorted(second):
                 x = cat_dict[key]
-                out.write("%d : %s : %s : %s" % (x["qtd"], x["cat"], x["label"], x["description"]) + "\n")
+                out.write(x.get_entry() + "\n")
 
     @staticmethod
     def set_categories_on_itens(itens, cat_dict):
@@ -369,8 +381,7 @@ class Folder:
 class Board:
     @staticmethod
     def get_entry(item, board_file):
-        path = Util.calc_prefix(board_file) + item.path_full
-        return "[](" + path + ')', item.crude_title  # todo
+        return "[](" + Util.get_directions(board_file, item.path_full) + ')', item.crude_title  # todo
 
     @staticmethod
     def update_titles(board_file):
@@ -383,9 +394,7 @@ class Board:
             fulltitle = parts[1].strip()
 
             if not os.path.isfile(path):
-                root, file = Util.split_path(path)
-                if not os.path.isdir(root):
-                    os.makedirs(root)
+                Util.create_dirs_if_needed(path)
                 print("  warning: file", path, "not found, creating!")
                 with open(path, "w") as f:
                     f.write(fulltitle + " #empty\n")
@@ -416,6 +425,7 @@ class Board:
             paths.append(path)
             descriptions.append(description)
         paths = [x.ljust(max_len) for x in paths]
+        Util.create_dirs_if_needed(board_file)
         with open(board_file, "w") as names:
             for i in range(len(paths)):
                 names.write(paths[i] + " : " + descriptions[i] + "\n")
@@ -425,6 +435,8 @@ class Links:
     @staticmethod
     def generate(itens, links_dir):
         print("Generating links")
+        if not os.path.isdir(links_dir):
+            os.makedirs(links_dir)
         for item in itens:
             path = os.path.join(links_dir, item.title.strip() + ".md")
             with open(path, "w") as f:
@@ -477,6 +489,7 @@ class Index:
                 item_path = item.path_full + "#" + Util.get_md_link(item.crude_title)
                 entry = "- [" + item.title.strip() + "](" + Util.get_directions(out_file, item_path) + ")\n"
                 readme_text.write(entry)
+        Util.create_dirs_if_needed(out_file)
         with open(out_file, "a") as f:
             f.write(readme_text.getvalue())
 
@@ -494,6 +507,7 @@ class Summary:
                 summary.write(item.hook + " ")
             summary.write("\n\n")
         
+        Util.create_dirs_if_needed(out_file)
         with open(out_file, "a") as f:
             f.write(summary.getvalue())
         summary.close()
@@ -545,14 +559,14 @@ class View:
         empty_fig = viewing["empty_fig"]
         posts_per_row = viewing["posts_per_row"]
         view_text = io.StringIO()
-        prefix = Util.calc_prefix(out_file)
 
         for key in sorted(tree.keys()):
             item_list = tree[key]
             view_text.write("\n## " + key + "\n\n")
-            text = View.__make_table_entry(item_list, out_file, empty_fig, posts_per_row, thumbs_dir)
+            text = View.__make_table_entry(item_list, out_file, empty_fig, posts_per_row)
             view_text.write(text)
     
+        Util.create_dirs_if_needed(out_file)
         with open(out_file, "a") as f:
             f.write(view_text.getvalue())
         view_text.close()
@@ -564,12 +578,13 @@ class Thumbs:
         print("Generating thumbs")
         itens.sort(key=lambda x: x.hook)
         for item in itens:
-            Thumbs.make(item)
+            Thumbs.make(item, width, height)
 
     @staticmethod
     def get_thumb(item):
         if item.cover:
-            return os.path.join(item.hook_full, "." + item.cover)
+            root, file = Util.split_path(item.cover)
+            return os.path.join(item.hook_full, os.path.join(root, "." + file))
         return None
 
     @staticmethod
@@ -578,10 +593,12 @@ class Thumbs:
         if thumb_full is None:
             print("  warning: thumb skipping, missing cover on", item.path_full)
             return
-        if not os.path.isfile(thumb_full) or os.path.getmtime(item.cover_full) > os.path.getmtime(thumb_full):
+        cover_full = os.path.join(item.hook_full, item.cover)
+        if not os.path.isfile(thumb_full) or os.path.getmtime(cover_full) > os.path.getmtime(thumb_full):
             print("  making thumb for", item.path_full)
-            cmd = ['convert', item.cover_full, '-resize', width + 'x' + height + '>', thumb_full]
+            cmd = ['convert', cover_full, '-resize', str(width) + 'x' + str(height) + '>', thumb_full]
             subprocess.run(cmd)
+
 
 class Main:
     @staticmethod
@@ -602,7 +619,7 @@ class Main:
         exit(0)
 
     @staticmethod
-    def update_from_board(cfg, board):
+    def update_from_board(board):
         if board:
             print("Updating names using board")
             Board.update_titles(board)
@@ -639,35 +656,41 @@ class Main:
             Config.check_keys(options, ["action", "cmds"])
             Main.run_scripts(options["cmds"])
 
-        elif options["mode"] == "thumbs":
+        elif action == "thumbs":
             print("Generating thumbs")
             Config.check_keys(options, ["action", "width", "height"])
             Thumbs.generate(itens, options["width"], options["height"])
 
-        elif options["mode"] == "links":
+        elif action == "links":
             print("Generating links")
             Config.check_keys(options, ["action", "dir"])
             Links.generate(itens, options["dir"])
 
-        elif options["mode"] == "index":
+        elif action == "index":
             print("Generating index")
             Config.check_keys(options, ["action", "intro", "file", "sorting"])
-            Index.generate(Tree.generate(itens, options["sorting"]), options)
+            Index.generate(Tree.generate(itens, options["sorting"]), options["file"])
 
-        elif options["mode"] == "view":
-            print("Generating photo board") #todo, se nao houver .thumb, carrega imagem
-            Config.check(options, ["action", "intro", "file", "sorting", "viewing"])
+        elif action == "view":
+            print("Generating photo board") # todo, se nao houver .thumb, carrega imagem
+            Config.check_keys(options, ["action", "intro", "file", "sorting", "viewing"])
             View.generate(Tree.generate(itens, options["sorting"]), options["file"], options["viewing"])
 
-        elif options["mode"] == "summary":
+        elif action == "summary":
             print("Generating summary")
-            Config.check(options, ["action", "intro", "file", "sorting"])
+            Config.check_keys(options, ["action", "intro", "file", "sorting"])
             Summary.generate(Tree.generate(itens, options["sorting"]), options["path"])
+
+        else:
+            print("  error: action", options["action"], "not found")
+
+        return itens
 
     @staticmethod
     def run_scripts(cmd_list):
         for cmd in cmd_list:
-            print(" ".join(cmd_list))
+            print(cmd)
+            print("$ " + " ".join(cmd))
             subprocess.run(cmd)
 
 
@@ -677,12 +700,13 @@ def main():
         Main.init()
 
     cfg = Config.load_cfg(".indexer.json")
-    Config.check(cfg, ["base", "execute"])
+    Config.check_keys(cfg, ["base", "execute"])
     if args.b:
-        Main.update_from_board(cfg, args.b)
+        Main.update_from_board(args.b)
     itens = []
+    base = os.path.normpath(cfg["base"])
     for options in cfg["execute"]:
-        Main.execute_actions(cfg, options, itens)
+        itens = Main.execute_actions(base, options, itens)
         
     print("All done!")
 

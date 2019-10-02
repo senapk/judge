@@ -1,3 +1,0 @@
-1 : 01_ope : Operações : Impressão formatada, entrada e saída, operações básica.
-3 : 02_sel : Seleção : If e Else, Ternário, Switch Case
-2 : 03_rep : Repetição : Exercícios de repetição
