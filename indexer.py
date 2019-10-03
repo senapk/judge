@@ -7,12 +7,21 @@ import argparse
 import re
 import subprocess
 import csv
+import io
 from shutil import rmtree
 
-import io
 
+class util:
 
-class Util:
+    @staticmethod
+    def join(path_list):
+        if None in path_list:
+            return None
+        path_list = [os.path.normpath(x) for x in path_list]
+        path = ""
+        for x in path_list:
+            path = os.path.join(path, x)
+        return os.path.normpath(path)
 
     @staticmethod
     def normpath(file):
@@ -22,15 +31,13 @@ class Util:
 
     @staticmethod
     def get_directions(source, destination):
-        source = os.path.normpath(source)
-        destination = os.path.normpath(destination)
         if source == '.' or source == './':
             return destination
-        return os.path.join("../" * (len(source.split(os.sep)) - 1), destination)
+        return util.join(["../" * (len(source.split(os.sep)) - 1), destination])
 
     @staticmethod
     def split_path(path):
-        path = Util.normpath(path)
+        path = util.normpath(path)
         vet = path.split(os.path.sep)
         if len(vet) == 1:
             return ".", path
@@ -38,7 +45,7 @@ class Util:
 
     @staticmethod
     def create_dirs_if_needed(path):
-        root, file = Util.split_path(path)
+        root, file = util.split_path(path)
         if not os.path.isdir(root):
             os.makedirs(root)
 
@@ -48,7 +55,7 @@ class Util:
             return ""
 
         parts = title.split(" ")
-        if Util.only_hashtags(parts[0]):
+        if util.only_hashtags(parts[0]):
             del parts[0]
         title = " ".join(parts)
         
@@ -164,7 +171,7 @@ class Config:
             exit(1)
         with open(config_file, "r") as f:
             cfg = json.load(f)
-            cfg["base"] = Util.normpath(cfg["base"])
+            cfg["base"] = util.normpath(cfg["base"])
             keys = [x for x in Config.get_default_cfg().keys()]
             Config.check_keys(cfg, keys)
             return cfg
@@ -241,61 +248,65 @@ class Item:
         return lines[0][:-1], "".join(lines[1:])
 
     def __init__(self, symbols, path):
-        self.crude_title, self.content = Item.normalize_file(path)
-        self.__parse_title(symbols, self.crude_title)
-        self.path_full = Util.normpath(path)                               # arcade/base/000/Readme.md
-        self.base_full = os.sep.join(self.path_full.split(os.sep)[:-2])    # arcade/base
-        self.hook_full = os.sep.join(self.path_full.split(os.sep)[:-1])    # arcade/base/000
+        crude_title, self.content = Item.normalize_file(path)
+        self.__parse_title(symbols, crude_title)
+        self.path_full = util.normpath(path)                               # arcade/base/000/Readme.md
+        self.base = os.sep.join(self.path_full.split(os.sep)[:-2])         # arcade/base
         self.hook = path.split(os.sep)[-2]                                 # 000
         self.filename = path.split(os.sep)[-1]                             # Readme.md
         self.cover = self.__get_cover()                                    # cover.jpg ou ../001/cover.jpg
-        self.fulltitle = self.__get_fulltitle(symbols)
+        self.fulltitle = self.__sort_fulltitle(symbols)                    # first line content withoub the \n
         self.category = Category()
+        if crude_title != self.fulltitle:
+            with open(path, "w") as f:
+                f.write(self.fulltitle + "\n" + self.content)
 
     def __parse_title(self, symbols, first_line):
         words = first_line.split(" ")
-        self.level = ""
-        if Util.only_hashtags(words[0]):
+        self.level = None
+        if util.only_hashtags(words[0]):
             self.level = words[0]
             del words[0]
-        words = [x for x in words if not Util.only_hashtags(x)]
-        self.tags, words = Util.split_list(words, symbols["tag"])
-        self.category_id, words = Util.split_list(words, symbols["category"])
-        self.date, words = Util.split_list(words, symbols["date"])
-        self.author, words = Util.split_list(words, symbols["author"])
+        words = [x for x in words if not util.only_hashtags(x)]
+        self.tags, words = util.split_list(words, symbols["tag"])
+        self.category_id, words = util.split_list(words, symbols["category"])
+        self.date, words = util.split_list(words, symbols["date"])
+        self.author, words = util.split_list(words, symbols["author"])
         parts = " ".join(words).split(symbols["subtitle"])
         self.title = parts[0].strip() if len(parts) > 0 else ''
         self.subtitle = parts[1].strip() if len(parts) > 1 else None
-        self.category_id = Util.get_first(self.category_id)
-        self.date = Util.get_first(self.date)
-        self.author = Util.get_first(self.author)
-
+        self.category_id = util.get_first(self.category_id)
+        self.date = util.get_first(self.date)
+        self.author = util.get_first(self.author)
 
     def __get_cover(self):
         regex = r"!\[(.*?)\]\(([^:]*?)\)"
         match = re.search(regex, self.content)
         if match:
             img = os.path.normpath(match.group(2))  # cover.jpg
-            if not os.path.isfile(os.path.join(self.hook_full, img)):
+            if not os.path.isfile(util.join([self.base, self.hook, img])):
                 print("  error: cover image not found in ", self.path_full)
                 exit(1)
             return img
         return None
 
-    def __get_fulltitle(self, symbols):
-        out = ''
+    def __sort_fulltitle(self, symbols):
+        out = []
+        if self.level:
+            out += [self.level]
         if self.date:
-            out += symbols["date"] + self.date + ' '
+            out += [symbols["date"] + self.date]
         if self.category_id:
-            out += symbols["category"] + self.category_id + ' '
-        out += self.title
+            out += [symbols["category"] + self.category_id]
+        if self.title:
+            out += [self.title]
         if self.subtitle:
-            out += ' ' + symbols["subtitle"] + ' ' + self.subtitle
+            out += [symbols["subtitle"] + ' ' + self.subtitle]
         for tag in self.tags:
-            out += ' ' + symbols["tag"] + tag
+            out += [symbols["tag"] + tag]
         if self.author:
-            out += ' ' + symbols["author"] + self.author
-        return out
+            out += [symbols["author"] + self.author]
+        return " ".join(out)
 
     def __str__(self):
         out = "@" + str(self.hook) + " "
@@ -314,11 +325,11 @@ class Item:
 class Folder:
     @staticmethod
     def get_categories_file_path(base):
-        return os.path.normpath(os.path.join(base, ".categories.csv"))
+        return util.join([base, ".categories.csv"])
 
     @staticmethod
     def get_symbols_file_path(base):
-        return os.path.normpath(os.path.join(base, ".symbols.json"))
+        return util.join([base, ".symbols.json"])
 
     @staticmethod
     def load(base):        
@@ -327,7 +338,6 @@ class Folder:
             print("  error: base dir is missing")
             exit(1)
 
-        categories_file = Folder.get_categories_file_path(base)
         symbols = Config.load_symbols(Folder.get_symbols_file_path(base))
         itens = Folder.load_itens(base, symbols)
         cat_dict = Folder.load_categories_file(base)
@@ -347,7 +357,7 @@ class Folder:
                 continue
             files = [x for x in files if x.endswith(".md")]
             for file in files:
-                path = os.path.join(root, file)
+                path = util.join([root, file])
                 itens.append(Item(symbols, path))
         return itens
 
@@ -402,7 +412,7 @@ class Folder:
 class Board:
     @staticmethod
     def get_entry(item, board_file):
-        return "[](" + Util.get_directions(board_file, item.path_full) + ')', item.crude_title  # todo
+        return "[](" + util.get_directions(board_file, item.path_full) + ')', item.fulltitle  # todo
 
     @staticmethod
     def update_titles(board_file):
@@ -415,7 +425,7 @@ class Board:
             fulltitle = parts[1].strip()
 
             if not os.path.isfile(path):
-                Util.create_dirs_if_needed(path)
+                util.create_dirs_if_needed(path)
                 print("  warning: file", path, "not found, creating!")
                 with open(path, "w") as f:
                     f.write(fulltitle + " #empty\n")
@@ -426,10 +436,7 @@ class Board:
                 new_first_line = fulltitle + "\n"
                 if old_first_line != new_first_line:
                     with open(path, "w") as f:
-                        data[0] = new_first_line
-                        data = [x for x in data if x != "#\n"]
-                        content = "".join(data)
-                        f.write(content)
+                        f.write(new_first_line + "".join(data[1:]))
 
     @staticmethod
     def generate(itens, board_file):
@@ -446,7 +453,7 @@ class Board:
             paths.append(path)
             descriptions.append(description)
         paths = [x.ljust(max_len) for x in paths]
-        Util.create_dirs_if_needed(board_file)
+        util.create_dirs_if_needed(board_file)
         with open(board_file, "w") as names:
             for i in range(len(paths)):
                 names.write(paths[i] + " : " + descriptions[i] + "\n")
@@ -458,9 +465,9 @@ class Links:
         if not os.path.isdir(links_dir):
             os.makedirs(links_dir)
         for item in itens:
-            path = os.path.join(links_dir, item.title.strip() + ".md")
+            path = util.join([links_dir, item.title.strip() + ".md"])
             with open(path, "w") as f:
-                f.write("[LINK](" + Util.get_directions(path, item.path_full) + ")\n")
+                f.write("[LINK](" + util.get_directions(path, item.path_full) + ")\n")
 
 
 class Tree:
@@ -506,10 +513,10 @@ class Index:
             item_list = tree[key]
             readme_text.write("\n## " + str(key) + "\n\n")
             for item in item_list:
-                item_path = item.path_full + "#" + Util.get_md_link(item.crude_title)
-                entry = "- [" + item.title.strip() + "](" + Util.get_directions(out_file, item_path) + ")\n"
+                item_path = item.path_full + "#" + util.get_md_link(item.fulltitle)
+                entry = "- [" + item.title.strip() + "](" + util.get_directions(out_file, item_path) + ")\n"
                 readme_text.write(entry)
-        Util.create_dirs_if_needed(out_file)
+        util.create_dirs_if_needed(out_file)
         with open(out_file, "a") as f:
             f.write(readme_text.getvalue())
 
@@ -527,7 +534,7 @@ class Summary:
                 summary.write(item.hook + " ")
             summary.write("\n\n")
         
-        Util.create_dirs_if_needed(out_file)
+        util.create_dirs_if_needed(out_file)
         with open(out_file, "a") as f:
             f.write(summary.getvalue())
         summary.close()
@@ -547,13 +554,13 @@ class View:
         for item in item_list:
             thumb = Thumbs.get_thumb_full(item)
             if thumb:
-                thumb = Util.get_directions(out_file, thumb)
+                thumb = util.get_directions(out_file, thumb)
             else:
                 if empty_fig:
-                    thumb = Util.get_directions(out_file, empty_fig)
+                    thumb = util.get_directions(out_file, empty_fig)
                 else:
                     thumb = "https://placekitten.com/320/181"
-            file_path = Util.get_directions(out_file, item.path_full + "#" + Util.get_md_link(item.crude_title))
+            file_path = util.get_directions(out_file, item.path_full + "#" + util.get_md_link(item.fulltitle))
             entry = "[![](" + thumb + ")](" + file_path + ")"
             if item.date:
                 data.append([entry, "@" + item.date + "<br>" + item.title])
@@ -586,7 +593,7 @@ class View:
             text = View.__make_table_entry(item_list, out_file, empty_fig, posts_per_row)
             view_text.write(text)
     
-        Util.create_dirs_if_needed(out_file)
+        util.create_dirs_if_needed(out_file)
         with open(out_file, "a") as f:
             f.write(view_text.getvalue())
         view_text.close()
@@ -603,16 +610,14 @@ class Thumbs:
     @staticmethod
     def get_thumb(item):
         if item.cover:
-            path = os.path.join(".thumb", item.hook)
-            path = os.path.join(path, item.filename[:-2] + "jpg")
-            return os.path.normpath(path)
+            return util.join([".thumb", item.hook, item.filename[:-2] + "jpg"])
         return None
 
     # return "arcade/base/.thumb/hook/Readme.jpg"
     @staticmethod
     def get_thumb_full(item):
         if item.cover:
-            return os.path.normpath(os.path.join(item.base_full, Thumbs.get_thumb(item)))
+            return util.join([item.base, Thumbs.get_thumb(item)])
         return None
 
     @staticmethod
@@ -621,8 +626,8 @@ class Thumbs:
         if thumb_full is None:
             print("  warning: thumb skipping, missing cover on", item.path_full)
             return
-        cover_full = os.path.join(item.hook_full, item.cover)
-        Util.create_dirs_if_needed(thumb_full)
+        cover_full = util.join([item.base, item.hook, item.cover])
+        util.create_dirs_if_needed(thumb_full)
         if not os.path.isfile(thumb_full) or os.path.getmtime(cover_full) > os.path.getmtime(thumb_full):
             print("  making thumb for", item.path_full)
             cmd = ['convert', cover_full, '-resize', str(width) + 'x' + str(height) + '>', thumb_full]
@@ -631,12 +636,12 @@ class Thumbs:
 
 class Posts:
     @staticmethod
-    def write_post(base, item, posts_dir, default_date, remote):
-        if item.date == None:
+    def write_post(item, posts_dir, default_date, remote):
+        if item.date is None:
             print("  warning: Date missing, using", default_date,  "on", item.path_full)
             item.date = default_date
-        if item.cover == None:
-            print("  warning: Cover missing, skypping", item.path_full)
+        if item.cover is None:
+            print("  warning: Cover missing, skip", item.path_full)
             return
         if remote[-1] == "/":
             remote = remote[:-1]
@@ -644,37 +649,38 @@ class Posts:
         out.write("---\nlayout: post\n")
         out.write("title: " + item.title + '\n')
         out.write("image: " + remote + "/" + item.hook + "/" + item.cover + "\n")
-        out.write("optimized_image: " + remote + "/" +  Thumbs.get_thumb(item) + "\n")
-        if item.subtitle != None:
+        out.write("optimized_image: " + remote + "/" + Thumbs.get_thumb(item) + "\n")
+        if item.subtitle:
             out.write("subtitle: " + item.subtitle + "\n")
             out.write("description: " + item.subtitle + "\n")
-        if item.category != None:
+        if item.category:
             out.write("category: " + item.category.label + "\n")
         if len(item.tags) > 0:
             out.write("tags:\n")
             for t in item.tags:
                 out.write("  - " + t + "\n")
-        if item.author != None:
+        if item.author:
             out.write("author: " + item.author + "\n")
         out.write("---\n")
-        warning_msg = ("<!-- DON'T EDIT THIS FILE, GENERATED BY SCRIPT -->\n") * 5
+        warning_msg = "<!-- DON'T EDIT THIS FILE, GENERATED BY SCRIPT -->\n" * 5
         out.write(warning_msg)
         out.write(item.content)
         text = out.getvalue()
 
         regex = r"!\[(.*?)\]\(([^:]*?)\)"
-        text = re.sub(regex, "", text, 1, re.MULTILINE) #removendo capa
+        text = re.sub(regex, "", text, 1, re.MULTILINE)  # removing cover
         subst = "![\\1](" + remote + "/" + item.hook + "/" + "\\2)"
         text = re.sub(regex, subst, text, 0, re.MULTILINE)
 
-        name = item.date + "-" + Util.get_md_link(item.category_id) + "-" + Util.get_md_link(item.title) + "-@" + item.hook
-        with open(posts_dir + os.sep + name +  ".md", "w") as f:
+        name = item.date + "-" + util.get_md_link(item.category_id)
+        name += "-" + util.get_md_link(item.title) + "-@" + item.hook
+        with open(posts_dir + os.sep + name + ".md", "w") as f:
             f.write(text)
 
     @staticmethod
     def remove_old_posts(item, posts_dir):
         files = os.listdir(posts_dir)
-        files = [os.path.join(posts_dir, x) for x in files]
+        files = [util.join([posts_dir, x]) for x in files]
         files = [x for x in files if os.path.isfile(x)]
         for file in files:
             if file.endswith("-@" + item.hook):
@@ -686,19 +692,19 @@ class Posts:
     def generate(base, itens, posts_dir, default_date, remote, categories_dir):
         for item in itens:
             Posts.remove_old_posts(item, posts_dir)
-            Posts.write_post(base, item, posts_dir, default_date, remote)
+            Posts.write_post(item, posts_dir, default_date, remote)
         Posts.generate_categories_files(base, categories_dir)
 
     @staticmethod
     def generate_categories_files(base, categories_dir):
         categories_dir = os.path.normpath(categories_dir)
-        rmtree(categories_dir, ignore_errors= True)
+        rmtree(categories_dir, ignore_errors=True)
         os.mkdir(categories_dir)
         cat_dict = Folder.load_categories_file(base)
         for key in cat_dict:
             cat = cat_dict[key]
             if cat.qtd > 0:
-                with open(os.path.join(categories_dir, cat.name + ".md"), "w") as f:
+                with open(util.join([categories_dir, cat.name + ".md"]), "w") as f:
                     f.write("---\n")
                     f.write("layout: category\n")
                     f.write("title: " + cat.label + "\n")
@@ -753,8 +759,6 @@ class Main:
             print("  you need choose one of this actions:")
             print("  " + str(actions))
 
-
-
         if action == "load_folder":
             print("Loading folder")
             Config.check_keys(options, ["action"])
@@ -787,7 +791,7 @@ class Main:
             Index.generate(Tree.generate(itens, options["sorting"]), options["file"])
 
         elif action == "view":
-            print("Generating photo board") # todo, se nao houver .thumb, carrega imagem
+            print("Generating photo board")
             Main.load_intro(options["intro"], options["file"])
             Config.check_keys(options, ["action", "intro", "file", "sorting", "viewing"])
             View.generate(Tree.generate(itens, options["sorting"]), options["file"], options["viewing"])
@@ -801,7 +805,11 @@ class Main:
         elif action == "posts":
             print("Generating posts")
             Config.check_keys(options, ["action", "dir", "default_date", "base_raw_remote", "categories_dir"])
-            Posts.generate(base, itens, options["dir"], options["default_date"], options["base_raw_remote"], options["categories_dir"])
+            posts_dir = options["dir"]
+            date = options["default_date"]
+            remote = options["base_raw_remote"]
+            categories_dir = options["categories_dir"]
+            Posts.generate(base, itens, posts_dir, date, remote, categories_dir)
 
         return itens
 

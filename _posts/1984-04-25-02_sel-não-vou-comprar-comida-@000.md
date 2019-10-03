@@ -3,7 +3,7 @@ layout: post
 title: Não vou comprar comida
 image: https://raw.githubusercontent.com/senapk/senapk.github.io/master/base/000/imgs/img.jpg
 optimized_image: https://raw.githubusercontent.com/senapk/senapk.github.io/master/base/.thumb/000/Readme.jpg
-category: 02_sel
+category: Seleção
 tags:
   - empty
 ---

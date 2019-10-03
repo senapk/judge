@@ -3,7 +3,7 @@ layout: post
 title: Vou comprar miojo
 image: https://raw.githubusercontent.com/senapk/senapk.github.io/master/base/003/__capa.jpg
 optimized_image: https://raw.githubusercontent.com/senapk/senapk.github.io/master/base/.thumb/003/Readme.jpg
-category: 03_rep
+category: Repetição
 tags:
   - comida
 ---
