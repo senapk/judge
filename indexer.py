@@ -151,8 +151,7 @@ class Config:
             "tag": "#",
             "category": "\u00a9",
             "date": "\u00f0",
-            "author": "\u00e6",
-            "subtitle": "\u00df"
+            "author": "\u00e6"
         }
         return symbols
 
@@ -238,17 +237,23 @@ class Item:
             lines.append("# Empty #empty\n")
             lines.append("\n")
 
-        if len(lines) == 1:
-            lines[0] += '\n'
-            lines.append("\n")
+        for i in range(len(lines)):
+            if lines[i] == "" or lines[i][-1] != "\n":
+                lines[i] = lines[i] + "\n"
+
 
         if fulltext != "".join(lines):
             with open(readme_path, "w") as f:
                 f.write("".join(lines))
-        return lines[0][:-1], "".join(lines[1:])
+
+        if len(lines) > 1:
+            words = lines[1].split(" ")
+            if util.only_hashtags(words[0]):
+                return lines[0][:-1], " ".join(words[1:])[:-1], "".join(lines[2:]) 
+            return lines[0][:-1], None, "".join(lines[1:])
 
     def __init__(self, symbols, path):
-        crude_title, self.content = Item.normalize_file(path)
+        crude_title, self.subtitle, self.content = Item.normalize_file(path)
         self.__parse_title(symbols, crude_title)
         self.path_full = util.normpath(path)                               # arcade/base/000/Readme.md
         self.base = os.sep.join(self.path_full.split(os.sep)[:-2])         # arcade/base
@@ -272,9 +277,7 @@ class Item:
         self.category_id, words = util.split_list(words, symbols["category"])
         self.date, words = util.split_list(words, symbols["date"])
         self.author, words = util.split_list(words, symbols["author"])
-        parts = " ".join(words).split(symbols["subtitle"])
-        self.title = parts[0].strip() if len(parts) > 0 else ''
-        self.subtitle = parts[1].strip() if len(parts) > 1 else None
+        self.title = " ".join(words).strip() if len(words) > 0 else ''
         self.category_id = util.get_first(self.category_id)
         self.date = util.get_first(self.date)
         self.author = util.get_first(self.author)
@@ -300,8 +303,6 @@ class Item:
             out += [symbols["category"] + self.category_id]
         if self.title:
             out += [self.title]
-        if self.subtitle:
-            out += [symbols["subtitle"] + ' ' + self.subtitle]
         for tag in self.tags:
             out += [symbols["tag"] + tag]
         if self.author:
