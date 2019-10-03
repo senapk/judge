@@ -30,6 +30,17 @@ class util:
         return os.path.normpath(file)
 
     @staticmethod
+    def extract_title_content(line):
+        if line == None or len(line) == 0:
+            return ""
+        if line[-1] == "\n":
+            line = line[:-1]
+        words = line.split(" ")
+        if util.only_hashtags(words[0]):
+            return " ".join(words[1:])
+        return " ".join(words)
+
+    @staticmethod
     def get_directions(source, destination):
         if source == '.' or source == './':
             return destination
@@ -53,12 +64,7 @@ class util:
     def get_md_link(title):
         if title is None:
             return ""
-
-        parts = title.split(" ")
-        if util.only_hashtags(parts[0]):
-            del parts[0]
-        title = " ".join(parts)
-        
+        title = util.extract_title_content(title)
         title = title.lower()
         out = ''
         for c in title:
@@ -237,23 +243,21 @@ class Item:
             lines.append("# Empty #empty\n")
             lines.append("\n")
 
+        if len(lines) == 1:
+            lines.append("\n")
+
         for i in range(len(lines)):
             if lines[i] == "" or lines[i][-1] != "\n":
                 lines[i] = lines[i] + "\n"
-
 
         if fulltext != "".join(lines):
             with open(readme_path, "w") as f:
                 f.write("".join(lines))
 
-        if len(lines) > 1:
-            words = lines[1].split(" ")
-            if util.only_hashtags(words[0]):
-                return lines[0][:-1], " ".join(words[1:])[:-1], "".join(lines[2:]) 
-            return lines[0][:-1], None, "".join(lines[1:])
+        return lines[0][:-1], lines[1][:-1], "".join(lines[2:])
 
     def __init__(self, symbols, path):
-        crude_title, self.subtitle, self.content = Item.normalize_file(path)
+        crude_title, self.description, self.content = Item.normalize_file(path)
         self.__parse_title(symbols, crude_title)
         self.path_full = util.normpath(path)                               # arcade/base/000/Readme.md
         self.base = os.sep.join(self.path_full.split(os.sep)[:-2])         # arcade/base
@@ -413,7 +417,7 @@ class Folder:
 class Board:
     @staticmethod
     def get_entry(item, board_file):
-        return "[](" + util.get_directions(board_file, item.path_full) + ')', item.fulltitle  # todo
+        return "[](" + util.get_directions(board_file, item.path_full) + ')', item.fulltitle, item.description
 
     @staticmethod
     def update_titles(board_file):
@@ -424,6 +428,7 @@ class Board:
             parts = line.split(":")
             path = parts[0].strip()[6:-1]
             fulltitle = parts[1].strip()
+            description = parts[2].strip()
 
             if not os.path.isfile(path):
                 util.create_dirs_if_needed(path)
@@ -435,9 +440,11 @@ class Board:
                     data = f.readlines()
                 old_first_line = data[0]
                 new_first_line = fulltitle + "\n"
-                if old_first_line != new_first_line:
+                old_description = data[1]
+                new_description = description + "\n"
+                if old_first_line != new_first_line or old_description != new_description:
                     with open(path, "w") as f:
-                        f.write(new_first_line + "".join(data[1:]))
+                        f.write(new_first_line + new_description +  "".join(data[2:]))
 
     @staticmethod
     def generate(itens, board_file):
@@ -445,24 +452,31 @@ class Board:
             return
         itens.sort(key=lambda item: item.fulltitle)
         paths = []
-        descriptions = []
-        max_len = 0
+        fulltitles = []
+        subtitles = []
+        max_len_path = 0
+        max_len_title = 0
         for x in itens:
-            path, description = Board.get_entry(x, board_file)
-            if len(path) > max_len:
-                max_len = len(path)
+            path, fulltitle, subtitle = Board.get_entry(x, board_file)
+            if len(path) > max_len_path:
+                max_len_path = len(path)
+            if len(fulltitle) > max_len_title:
+                max_len_title = len(fulltitle)
             paths.append(path)
-            descriptions.append(description)
-        paths = [x.ljust(max_len) for x in paths]
+            fulltitles.append(fulltitle)
+            subtitles.append(subtitle if subtitle is not None else "")
+        paths = [x.ljust(max_len_path) for x in paths]
+        fulltitles = [x.ljust(max_len_title) for x in fulltitles]
         util.create_dirs_if_needed(board_file)
         with open(board_file, "w") as names:
             for i in range(len(paths)):
-                names.write(paths[i] + " : " + descriptions[i] + "\n")
-
+                names.write(paths[i] + " : " + fulltitles[i] + " : " + subtitles[i] + "\n")
 
 class Links:
     @staticmethod
     def generate(itens, links_dir):
+        if os.path.isdir(links_dir):
+            rmtree(links_dir, ignore_errors=True)
         if not os.path.isdir(links_dir):
             os.makedirs(links_dir)
         for item in itens:
@@ -651,11 +665,12 @@ class Posts:
         out.write("title: " + item.title + '\n')
         out.write("image: " + remote + "/" + item.hook + "/" + item.cover + "\n")
         out.write("optimized_image: " + remote + "/" + Thumbs.get_thumb(item) + "\n")
-        if item.subtitle:
-            out.write("subtitle: " + item.subtitle + "\n")
-            out.write("description: " + item.subtitle + "\n")
+        if item.description:
+            description = util.extract_title_content(item.description)
+            out.write("subtitle: " + description + "\n")
+            out.write("description: " + description + "\n")
         if item.category:
-            out.write("category: " + item.category.label + "\n")
+            out.write("category: " + item.category.name + "\n")
         if len(item.tags) > 0:
             out.write("tags:\n")
             for t in item.tags:
@@ -709,7 +724,7 @@ class Posts:
                     f.write("---\n")
                     f.write("layout: category\n")
                     f.write("title: " + cat.label + "\n")
-                    f.write("slug: " + cat.label + "\n")
+                    f.write("slug: " + cat.name + "\n")
                     f.write("description: " + cat.description + "\n")
                     f.write("---\n")
 
