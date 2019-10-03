@@ -7,6 +7,7 @@ import argparse
 import re
 import subprocess
 import csv
+from shutil import rmtree
 
 import io
 
@@ -45,6 +46,12 @@ class Util:
     def get_md_link(title):
         if title is None:
             return ""
+
+        parts = title.split(" ")
+        if Util.only_hashtags(parts[0]):
+            del parts[0]
+        title = " ".join(parts)
+        
         title = title.lower()
         out = ''
         for c in title:
@@ -80,7 +87,7 @@ class Config:
                     ]
                 },
                 {
-                    "action": "load_itens", 
+                    "action": "load_folder", 
                 },
                 {
                     "action": "board", 
@@ -135,10 +142,10 @@ class Config:
     def get_default_symbols():
         symbols = {
             "tag": "#",
-            "category": "©",
-            "date": "ð",
-            "author": "æ",
-            "subtitle": "ß"
+            "category": "\u00a9",
+            "date": "\u00f0",
+            "author": "\u00e6",
+            "subtitle": "\u00df"
         }
         return symbols
 
@@ -165,8 +172,12 @@ class Config:
     @staticmethod
     def load_symbols(symbols_file):
         if not os.path.isfile(symbols_file):
-            print("  warning: .symbols.json not found in", symbols_file, ", loading default value")
-            return Config.get_default_symbols()
+            print("  warning: .symbols.json not found in", symbols_file, ", loading default value and creating file")
+            symbols = Config.get_default_symbols()
+            with open(symbols_file, "w", encoding="utf-8") as f:
+                f.write(json.dumps(symbols, indent=2))
+            return symbols
+
         with open(symbols_file, "r") as f:
             symbols = json.load(f)
             print("Loading symbols")
@@ -302,18 +313,26 @@ class Item:
 
 class Folder:
     @staticmethod
+    def get_categories_file_path(base):
+        return os.path.normpath(os.path.join(base, ".categories.csv"))
+
+    @staticmethod
+    def get_symbols_file_path(base):
+        return os.path.normpath(os.path.join(base, ".symbols.json"))
+
+    @staticmethod
     def load(base):        
         base = os.path.normpath(base)
         if not os.path.isdir(base):
             print("  error: base dir is missing")
             exit(1)
 
-        categories_file = os.path.join(base, ".categories.csv")
-        symbols = Config.load_symbols(os.path.join(base, ".symbols.json"))
+        categories_file = Folder.get_categories_file_path(base)
+        symbols = Config.load_symbols(Folder.get_symbols_file_path(base))
         itens = Folder.load_itens(base, symbols)
-        cat_dict = Folder.load_categories_file(categories_file)
+        cat_dict = Folder.load_categories_file(base)
         Folder.merge_categories(itens, cat_dict)
-        Folder.save_categories_on_file(cat_dict, categories_file)
+        Folder.save_categories_on_file(cat_dict, base)
         Folder.set_categories_on_itens(itens, cat_dict)
         return itens
 
@@ -333,16 +352,17 @@ class Folder:
         return itens
 
     @staticmethod
-    def load_categories_file(categories_file):
+    def load_categories_file(base):
+        categories_file = Folder.get_categories_file_path(base)
         print("Loading categories")
         cat_dict = {}
         if os.path.isfile(categories_file):
             with open(categories_file, 'r') as f:
-                spamreader = csv.reader(f, delimiter=',', quotechar='"')
+                spamreader = csv.reader(f, delimiter=',', quotechar='"', skipinitialspace=True)
                 for row in spamreader:
                     qtd, cat, label, description = row
                     if cat not in cat_dict:
-                        cat_dict[cat] = Category(0, cat, label, description)
+                        cat_dict[cat] = Category(int(qtd), cat, label, description)
         return cat_dict
 
     @staticmethod
@@ -357,10 +377,11 @@ class Folder:
             if key not in cat_dict:
                 cat_dict[key] = Category(qtd, key, key, "")
             else:
-                cat_dict[key].qtd += qtd
+                cat_dict[key].qtd = qtd
 
     @staticmethod
-    def save_categories_on_file(cat_dict, categories_file):
+    def save_categories_on_file(cat_dict, base):
+        categories_file = Folder.get_categories_file_path(base)
         first = [x for x in cat_dict if cat_dict[x].qtd != 0]  # elementos com qtd > 0
         second = [x for x in cat_dict if cat_dict[x].qtd == 0]
         with open(categories_file, "w") as out:
@@ -628,7 +649,7 @@ class Posts:
             out.write("subtitle: " + item.subtitle + "\n")
             out.write("description: " + item.subtitle + "\n")
         if item.category != None:
-            out.write("category: " + item.category_id + "\n")
+            out.write("category: " + item.category.label + "\n")
         if len(item.tags) > 0:
             out.write("tags:\n")
             for t in item.tags:
@@ -662,10 +683,29 @@ class Posts:
                     os.remove(file)
 
     @staticmethod
-    def generate(base, itens, posts_dir, default_date, remote):
+    def generate(base, itens, posts_dir, default_date, remote, categories_dir):
         for item in itens:
             Posts.remove_old_posts(item, posts_dir)
             Posts.write_post(base, item, posts_dir, default_date, remote)
+        Posts.generate_categories_files(base, categories_dir)
+
+    @staticmethod
+    def generate_categories_files(base, categories_dir):
+        categories_dir = os.path.normpath(categories_dir)
+        rmtree(categories_dir, ignore_errors= True)
+        os.mkdir(categories_dir)
+        cat_dict = Folder.load_categories_file(base)
+        for key in cat_dict:
+            cat = cat_dict[key]
+            if cat.qtd > 0:
+                with open(os.path.join(categories_dir, cat.name + ".md"), "w") as f:
+                    f.write("---\n")
+                    f.write("layout: category\n")
+                    f.write("title: " + cat.label + "\n")
+                    f.write("slug: " + cat.label + "\n")
+                    f.write("description: " + cat.description + "\n")
+                    f.write("---\n")
+
 
 class Main:
     @staticmethod
@@ -707,7 +747,14 @@ class Main:
     @staticmethod
     def execute_actions(base, options, itens):
         action = options["action"]
- 
+        actions = ["load_folder", "board", "run", "thumbs", "links", "index", "view", "summary", "posts"]
+        if action not in actions:
+            print("  error: action", options["action"], "not found")
+            print("  you need choose one of this actions:")
+            print("  " + str(actions))
+
+
+
         if action == "load_folder":
             print("Loading folder")
             Config.check_keys(options, ["action"])
@@ -753,10 +800,8 @@ class Main:
 
         elif action == "posts":
             print("Generating posts")
-            Config.check_keys(options, ["action", "dir", "default_date", "base_raw_remote"])
-            Posts.generate(base, itens, options["dir"], options["default_date"], options["base_raw_remote"])
-        else:
-            print("  error: action", options["action"], "not found")
+            Config.check_keys(options, ["action", "dir", "default_date", "base_raw_remote", "categories_dir"])
+            Posts.generate(base, itens, options["dir"], options["default_date"], options["base_raw_remote"], options["categories_dir"])
 
         return itens
 
