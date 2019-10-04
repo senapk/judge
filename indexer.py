@@ -8,6 +8,7 @@ import re
 import subprocess
 import csv
 import io
+from typing import List
 from shutil import rmtree
 
 
@@ -212,7 +213,8 @@ class Config:
 
 
 class Category:
-    def __init__(self, qtd=0, name="", label="", description=""):
+    def __init__(self, index = 0, qtd=0, name="", label="", description=""):
+        self.index = index
         self.qtd = qtd
         self.name = name
         self.label = label
@@ -222,7 +224,7 @@ class Category:
         return str(self.qtd) + "," + self.name + "," + self.label + "," + self.description
 
     def __lt__(self, other):
-        return self.name < other.name
+        return self.index < other.index
 
     def __str__(self):
         return self.label
@@ -374,10 +376,12 @@ class Folder:
         if os.path.isfile(categories_file):
             with open(categories_file, 'r') as f:
                 spamreader = csv.reader(f, delimiter=',', quotechar='"', skipinitialspace=True)
+                index = 0
                 for row in spamreader:
                     qtd, cat, label, description = row
                     if cat not in cat_dict:
-                        cat_dict[cat] = Category(int(qtd), cat, label, description)
+                        cat_dict[cat] = Category(index, int(qtd), cat, label, description)
+                        index += 1
         return cat_dict
 
     @staticmethod
@@ -385,27 +389,23 @@ class Folder:
         sorting = Config.get_default_sorting()
         sorting["group_by"] = "category_id"
         tree = Tree.generate(itens, sorting)
+        for key in cat_dict:
+            cat_dict[key].qtd = 0
         for key in tree.keys():
             qtd = len(tree[key])
             if qtd == 0:
                 continue
             if key not in cat_dict:
-                cat_dict[key] = Category(qtd, key, key, "")
+                cat_dict[key] = Category(1000, qtd, key, key, "")
             else:
                 cat_dict[key].qtd = qtd
 
     @staticmethod
     def save_categories_on_file(cat_dict, base):
         categories_file = Folder.get_categories_file_path(base)
-        first = [x for x in cat_dict if cat_dict[x].qtd != 0]  # elementos com qtd > 0
-        second = [x for x in cat_dict if cat_dict[x].qtd == 0]
         with open(categories_file, "w") as out:
             write = csv.writer(out, delimiter=',', quotechar='"')
-            for key in sorted(first):  # ordena pelo nome da categoria
-                x = cat_dict[key]
-                write.writerow([x.qtd, x.name, x.label, x.description])
-            for key in sorted(second):
-                x = cat_dict[key]
+            for x in sorted(cat_dict.values()):  # ordena pelo nome da categoria
                 write.writerow([x.qtd, x.name, x.label, x.description])
 
     @staticmethod
@@ -447,10 +447,10 @@ class Board:
                         f.write(new_first_line + new_description +  "".join(data[2:]))
 
     @staticmethod
-    def generate(itens, board_file):
+    def generate(itens: List[Item], board_file):
         if board_file is None:
             return
-        itens.sort(key=lambda item: item.fulltitle)
+        itens.sort(key=lambda item: item.category.index)
         paths = []
         fulltitles = []
         subtitles = []

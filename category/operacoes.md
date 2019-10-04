@@ -1,6 +1,6 @@
 ---
 layout: category
-title: Seleção
-slug: Seleção
+title: Operações
+slug: operacoes
 description: 
 ---

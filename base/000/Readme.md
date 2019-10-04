@@ -1,4 +1,4 @@
-## $02_sel Não vou comprar comida #empty
+## $operacoes Não vou comprar comida #empty
 ## @qxcode
 
 ![](imgs/img.jpg)
