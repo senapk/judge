@@ -91,7 +91,6 @@ class Config:
     @staticmethod
     def get_default_cfg():
         cfg = {
-            "base": "base",
             "execute": [
                 {
                     "action": "run",
@@ -101,7 +100,8 @@ class Config:
                     ]
                 },
                 {
-                    "action": "load_folder", 
+                    "action": "load_folder",
+                    "dir": "base"
                 },
                 {
                     "action": "board", 
@@ -177,7 +177,6 @@ class Config:
             exit(1)
         with open(config_file, "r") as f:
             cfg = json.load(f)
-            cfg["base"] = util.normpath(cfg["base"])
             keys = [x for x in Config.get_default_cfg().keys()]
             Config.check_keys(cfg, keys)
             return cfg
@@ -213,22 +212,6 @@ class Config:
                 exit(1)
 
 
-class Category:
-    def __init__(self, index = 0, qtd=0, name="", label="", description=""):
-        self.index = index
-        self.qtd = qtd
-        self.name = name
-        self.label = label
-        self.description = description
-
-    def get_entry(self):
-        return str(self.qtd) + "," + self.name + "," + self.label + "," + self.description
-
-    def __lt__(self, other):
-        return self.index < other.index
-
-    def __str__(self):
-        return self.label
 
 
 class Item:
@@ -259,21 +242,22 @@ class Item:
 
         return lines[0][:-1], lines[1][:-1], "".join(lines[2:])
 
-    def __init__(self, symbols, path):
+    def __init__(self, symbols, cat_dict, path):
+        self.symbols = symbols
         crude_title, self.description, self.content = Item.normalize_file(path)
-        self.__parse_title(symbols, crude_title)
+        self.__parse_title(cat_dict, crude_title)
         self.path_full = util.normpath(path)                               # arcade/base/000/Readme.md
         self.base = os.sep.join(self.path_full.split(os.sep)[:-2])         # arcade/base
         self.hook = path.split(os.sep)[-2]                                 # 000
         self.filename = path.split(os.sep)[-1]                             # Readme.md
         self.cover = self.__get_cover()                                    # cover.jpg ou ../001/cover.jpg
-        self.fulltitle = self.__sort_fulltitle(symbols)                    # first line content withoub the \n
-        self.category = Category()
+        self.fulltitle = self.__sort_fulltitle()                    # first line content withoub the \n
         if crude_title != self.fulltitle:
             with open(path, "w") as f:
                 f.write(self.fulltitle + "\n" + self.content)
 
-    def __parse_title(self, symbols, first_line):
+    def __parse_title(self, cat_dict, first_line):
+        symbols = self.symbols
         words = first_line.split(" ")
         self.level = None
         if util.only_hashtags(words[0]):
@@ -281,13 +265,15 @@ class Item:
             del words[0]
         words = [x for x in words if not util.only_hashtags(x)]
         self.tags, words = util.split_list(words, symbols["tag"])
-        self.category_id, words = util.split_list(words, symbols["category"])
+        category_key, words = util.split_list(words, symbols["category"])
         self.date, words = util.split_list(words, symbols["date"])
         self.author, words = util.split_list(words, symbols["author"])
         self.title = " ".join(words).strip() if len(words) > 0 else ''
-        self.category_id = util.get_first(self.category_id)
+        category_key = util.get_first(category_key)
         self.date = util.get_first(self.date)
         self.author = util.get_first(self.author)
+        self.category = Category.get_category(cat_dict, category_key)
+        Category.count_item(cat_dict, category_key)
 
     def __get_cover(self):
         regex = r"!\[(.*?)\]\(([^:]*?)\)"
@@ -300,14 +286,15 @@ class Item:
             return img
         return None
 
-    def __sort_fulltitle(self, symbols):
+    def __sort_fulltitle(self):
+        symbols = self.symbols
         out = []
         if self.level:
             out += [self.level]
         if self.date:
             out += [symbols["date"] + self.date]
-        if self.category_id:
-            out += [symbols["category"] + self.category_id]
+        if self.category.key != Category.ORPHAN:
+            out += [symbols["category"] + self.category.key]
         if self.title:
             out += [self.title]
         for tag in self.tags:
@@ -319,8 +306,8 @@ class Item:
     def __str__(self):
         out = "@" + str(self.hook) + " "
         out += "[title: " + str(self.title) + "]"
-        if self.category_id:
-            out += "[cat: " + self.category_id + "]"
+        if self.category.key != Category.ORPHAN:
+            out += "[cat: " + self.category.key + "]"
         if self.date:
             out += "[date: " + self.date + "]"
         if len(self.tags) > 0:
@@ -328,6 +315,42 @@ class Item:
         if self.author:
             out += "[author: " + self.author + "]"
         return out
+
+
+class Category:
+    ORPHAN = "orphan"
+    def __init__(self, index=0, qtd=0, key="", label="", description=""):
+        self.index = index
+        self.qtd = qtd
+        self.key = key
+        self.label = label
+        self.description = description
+
+    def get_entry(self):
+        return str(self.qtd) + "," + self.name + "," + self.label + "," + self.description
+
+    @staticmethod
+    def get_category(cat_dict, key):
+        if key is None:
+            if not Category.ORPHAN in cat_dict:
+                cat_dict[Category.ORPHAN] = Category(100, 0, Category.ORPHAN, Category.ORPHAN, Category.ORPHAN)
+            return cat_dict[Category.ORPHAN]
+        elif key in cat_dict:
+            return cat_dict[key]
+        else:
+            cat_dict[key] = Category(100, 0, key, key, key)
+            return cat_dict[key]
+
+    @staticmethod
+    def count_item(cat_dict, key):
+        category = Category.get_category(cat_dict, key)
+        category.qtd += 1
+
+    def __lt__(self, other):
+        return self.index < other.index
+
+    def __str__(self):
+        return self.label
 
 
 class Folder:
@@ -347,15 +370,13 @@ class Folder:
             exit(1)
 
         symbols = Config.load_symbols(Folder.get_symbols_file_path(base))
-        itens = Folder.load_itens(base, symbols)
-        cat_dict = Folder.load_categories_file(base)
-        Folder.merge_categories(itens, cat_dict)
+        cat_dict = Folder.load_categories_file(base, reset_qtds=True)
+        itens = Folder.load_itens(base, symbols, cat_dict)
         Folder.save_categories_on_file(cat_dict, base)
-        Folder.set_categories_on_itens(itens, cat_dict)
         return itens
 
     @staticmethod
-    def load_itens(base, symbols):
+    def load_itens(base, symbols, cat_dict):
         itens = []
         for (root, dirs, files) in os.walk(base, topdown=True):
             folder = root.split(os.sep)[-1]
@@ -366,11 +387,11 @@ class Folder:
             files = [x for x in files if x.endswith(".md")]
             for file in files:
                 path = util.join([root, file])
-                itens.append(Item(symbols, path))
+                itens.append(Item(symbols, cat_dict, path))
         return itens
 
     @staticmethod
-    def load_categories_file(base):
+    def load_categories_file(base, reset_qtds=False):
         categories_file = Folder.get_categories_file_path(base)
         print("Loading categories")
         cat_dict = {}
@@ -379,27 +400,16 @@ class Folder:
                 spamreader = csv.reader(f, delimiter=',', quotechar='"', skipinitialspace=True)
                 index = 0
                 for row in spamreader:
-                    qtd, cat, label, description = row
-                    if cat not in cat_dict:
-                        cat_dict[cat] = Category(index, int(qtd), cat, label, description)
-                        index += 1
+                    qtd, key, label, description = row
+                    category = Category.get_category(cat_dict, key)
+                    category.index = index
+                    category.qtd = int(qtd)
+                    category.key = key
+                    category.label = label
+                    category.description = description
+                    if reset_qtds:
+                        category.qtd = 0
         return cat_dict
-
-    @staticmethod
-    def merge_categories(itens, cat_dict):
-        sorting = Config.get_default_sorting()
-        sorting["group_by"] = "category_id"
-        tree = Tree.generate(itens, sorting)
-        for key in cat_dict:
-            cat_dict[key].qtd = 0
-        for key in tree.keys():
-            qtd = len(tree[key])
-            if qtd == 0:
-                continue
-            if key not in cat_dict:
-                cat_dict[key] = Category(1000, qtd, key, key, "")
-            else:
-                cat_dict[key].qtd = qtd
 
     @staticmethod
     def save_categories_on_file(cat_dict, base):
@@ -407,12 +417,7 @@ class Folder:
         with open(categories_file, "w") as out:
             write = csv.writer(out, delimiter=',', quotechar='"')
             for x in sorted(cat_dict.values()):  # ordena pelo nome da categoria
-                write.writerow([x.qtd, x.name, x.label, x.description])
-
-    @staticmethod
-    def set_categories_on_itens(itens, cat_dict):
-        for item in itens:
-            item.category = cat_dict[item.category_id]
+                write.writerow([x.qtd, x.key, x.label, x.description])
 
 
 class Board:
@@ -673,7 +678,7 @@ class Posts:
             out.write("subtitle: " + description + "\n")
             out.write("description: " + description + "\n")
         if item.category:
-            out.write("category: " + item.category.name + "\n")
+            out.write("category: " + item.category.key + "\n")
         if len(item.tags) > 0:
             out.write("tags:\n")
             for t in item.tags:
@@ -692,7 +697,7 @@ class Posts:
         subst = "[\\1](" + remote + "/" + item.hook + "/" + "\\2)"
         text = re.sub(regex, subst, text, 0, re.MULTILINE)  # creating full url for links
 
-        name = "%s-c%02d-%s-%s" % (item.date, item.category.index, item.category.name, item.title)
+        name = "%s-c%02d-%s-%s" % (item.date, item.category.index, item.category.key, item.title)
         name = util.get_md_link(name) + "-@" + item.hook + ".md"
         while "--" in name:
             name = name.replace("--", "-")
@@ -749,11 +754,11 @@ class Posts:
         for key in cat_dict:
             cat = cat_dict[key]
             if cat.qtd > 0:
-                with open(util.join([categories_dir, cat.name + ".md"]), "w") as f:
+                with open(util.join([categories_dir, cat.key + ".md"]), "w") as f:
                     f.write("---\n")
                     f.write("layout: category\n")
                     f.write("title: " + cat.label + "\n")
-                    f.write("slug: " + cat.name + "\n")
+                    f.write("slug: " + cat.key + "\n")
                     f.write("description: " + cat.description + "\n")
                     f.write("---\n")
 
@@ -784,6 +789,8 @@ class Main:
 
     @staticmethod
     def load_intro(intro, out_file):
+        if intro is None:
+            return
         intro = os.path.normpath(intro)
         out_file = os.path.normpath(out_file)
         if intro:
@@ -796,7 +803,7 @@ class Main:
                 os.remove(out_file)
 
     @staticmethod
-    def execute_actions(base, options, itens, rebuild_all):
+    def execute_actions(options, itens, rebuild_all):
         action = options["action"]
         actions = ["load_folder", "board", "run", "thumbs", "links", "index", "view", "summary", "posts"]
         if action not in actions:
@@ -806,8 +813,8 @@ class Main:
 
         if action == "load_folder":
             print("Loading folder")
-            Config.check_keys(options, ["action"])
-            itens = Folder.load(base)
+            Config.check_keys(options, ["action", "dir"])
+            itens = Folder.load(options["dir"])
         
         elif action == "board":
             print("Generating board")
@@ -849,7 +856,8 @@ class Main:
 
         elif action == "posts":
             print("Generating posts")
-            Config.check_keys(options, ["action", "dir", "default_date", "base_raw_remote", "categories_dir"])
+            Config.check_keys(options, ["action", "base", "dir", "default_date", "base_raw_remote", "categories_dir"])
+            base = options["base"]
             posts_dir = options["dir"]
             date = options["default_date"]
             remote = options["base_raw_remote"]
@@ -872,13 +880,12 @@ def main():
         Main.init()
 
     cfg = Config.load_cfg(".indexer.json")
-    Config.check_keys(cfg, ["base", "execute"])
+    Config.check_keys(cfg, ["execute"])
     if args.b:
         Main.update_from_board(args.b)
     itens = []
-    base = os.path.normpath(cfg["base"])
     for options in cfg["execute"]:
-        itens = Main.execute_actions(base, options, itens, args.r)
+        itens = Main.execute_actions(options, itens, args.r)
         
     print("All done!")
 

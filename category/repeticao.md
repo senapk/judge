@@ -1,6 +1,6 @@
 ---
 layout: category
-title: Repetição
+title: repeticao
 slug: repeticao
-description: 
+description: repeticao
 ---

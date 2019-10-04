@@ -1,6 +1,6 @@
 ---
 layout: category
-title: Seleção
+title: selecao
 slug: selecao
-description: 
+description: selecao
 ---
