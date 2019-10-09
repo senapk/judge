@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="14.3.0">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>280</x>
+      <y>20</y>
+      <w>210</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>Category
+--
+-key
+-itens: Item[]
+--
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>20</x>
+      <y>20</y>
+      <w>210</w>
+      <h>330</h>
+    </coordinates>
+    <panel_attributes>Item
+--
+-fulltitle
+-path_full
+-base
+-hook
+-filename
+-cover
+-content
+
+-categories: str[]
+-tags      : str[]
+-author    : str[]
+-title
+-date
+-level
+
+--
++get_cover()
++sort_fulltitle
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>570</x>
+      <y>140</y>
+      <w>230</w>
+      <h>100</h>
+    </coordinates>
+    <panel_attributes>LabelRep
+--
+-labels: Dict[str, Label]
+--
++ getLabel(key): Label
+
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>280</x>
+      <y>380</y>
+      <w>210</w>
+      <h>210</h>
+    </coordinates>
+    <panel_attributes>ItemRepository
+--
+- base: str
+- itens: List[Item]
+- symbols: Dict[str, str]
+- catLabels: LabelRep()
+- cats: Dict[str, itens[]]
+- tags: Dict[str, itens[]]
+- authors: Dict[str, itens[]]
+--
++ load()
++ get_categories_file()
++ get_symbols_file()
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>280</x>
+      <y>120</y>
+      <w>210</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>Tag
+--
+-key
+-itens: Item[]
+--
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>580</x>
+      <y>20</y>
+      <w>210</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>Label
+--
+-index
+-key
+-label
+-description
+--
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>570</x>
+      <y>260</y>
+      <w>210</w>
+      <h>110</h>
+    </coordinates>
+    <panel_attributes>Symbol
+--
+-category: char
+-date: char
+-author: char
+-tag: char
+--
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>280</x>
+      <y>230</y>
+      <w>210</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>Author
+--
+-key
+-itens: Item[]
+--
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+</diagram>

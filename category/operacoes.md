@@ -1,6 +1,6 @@
 ---
 layout: category
-title: operacoes
+title: Operações
 slug: operacoes
 description: operacoes
 ---

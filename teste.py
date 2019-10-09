@@ -1,14 +1,9 @@
 class Cat:
-    def __init__(self, name, label, description):
-        self.name = name
-        self.label = label
-        self.description = description
+    def __init__(self):
+        self.name = "name"
+        self.pulgas = []
 
-    def __str__(self):
-        return self.name + ":" + self.label + ":" + self.description
+cat = Cat()
 
-cdict = {}
-cdict["sel"] = Cat("sel", "sel")
-ref = cdict["sel"]
-cdict["sel"].desc = "selecao"
-print(ref.desc)
+print(type(getattr(cat, "name")) is list)
+print(type(getattr(cat, "pulgas")) is list)
