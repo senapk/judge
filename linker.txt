@@ -1,0 +1,11 @@
+asdfsadf
+asdfsadfds
+<!--BEGIN-->
+<li><a href="/category/operacoes">{{ "Operações" }}</a></li>
+<li><a href="/category/selecao">{{ "Seleção" }}</a></li>
+<li><a href="/category/repeticao">{{ "Repetição" }}</a></li>
+<li><a href="/category/__orphan__">{{ "Sem Categoria" }}</a></li>
+<!--END-->
+dsaf
+sg
+dsafsdfsadf

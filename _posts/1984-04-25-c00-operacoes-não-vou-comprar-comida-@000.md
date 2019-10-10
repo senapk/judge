@@ -5,7 +5,7 @@ image: https://raw.githubusercontent.com/senapk/senapk.github.io/master/base/000
 optimized_image: https://raw.githubusercontent.com/senapk/senapk.github.io/master/base/.thumb/000/Readme.jpg
 subtitle: @qxcode
 description: @qxcode
-category: Operações
+category: operacoes
 tags:
   - empty
 ---
