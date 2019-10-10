@@ -373,8 +373,9 @@ class Sorter:
 
     @staticmethod
     def sorted_by_key(itens: List[Item], key: str, reverse: bool = False) -> List[Item]:
-        if len(itens) > 0:
-            Sorter.test_key(itens[0], key)
+        if len(itens) == 0:
+            return []
+        Sorter.test_key(itens[0], key)
         if type(getattr(itens[0], key)) is list:
             return sorted(itens, key=lambda x: getattr(x, key)[0], reverse=reverse)
         return sorted(itens, key=lambda x: getattr(x, key), reverse=reverse)
@@ -522,13 +523,13 @@ class Links:
 
 class Index:
     @staticmethod
-    def generate(tree: Dict[str, List[Item]], out_file: str):
+    def generate(tree: Dict[str, List[Item]], labels: LabelRepository, out_file: str):
         if out_file is None:
             return
         readme_text = io.StringIO()
-        for key in sorted(tree.keys()):
+        for key in sorted(tree.keys(), key=lambda x: labels.get_index(x)):
             item_list = tree[key]
-            readme_text.write("\n## " + str(key) + "\n\n")
+            readme_text.write("\n## " + labels.get_label(key).label + "\n\n")
             for item in item_list:
                 item_path = item.path_full + "#" + Util.get_md_link(item.fulltitle)
                 entry = "- [" + item.title.strip() + "](" + Util.get_directions(out_file, item_path) + ")\n"
@@ -540,13 +541,13 @@ class Index:
 
 class Summary:
     @staticmethod
-    def generate(tree: Dict[str, List[Item]], out_file: str):
+    def generate(tree: Dict[str, List[Item]], labels: LabelRepository, out_file: str):
         if out_file is None:
             return
         summary = io.StringIO()
-        for key in sorted(tree.keys()):
+        for key in sorted(tree.keys(), key=lambda x: labels.get_index(x)):
             item_list = tree[key]
-            summary.write("\n## " + key + "\n")
+            summary.write("\n## " + labels.get_label(key).label + "\n")
             for item in item_list:
                 summary.write(item.hook + " ")
             summary.write("\n\n")
@@ -597,14 +598,14 @@ class View:
         return "".join(lines)
 
     @staticmethod
-    def generate(tree: Dict[str, List[Item]], out_file: str, empty_fig: str, posts_per_row: int):
+    def generate(tree: Dict[str, List[Item]], labels: LabelRepository, out_file: str, empty_fig: str, posts_per_row: int):
         if out_file is None:
             return
         view_text = io.StringIO()
 
-        for key in sorted(tree.keys()):
+        for key in sorted(tree.keys(), key=lambda x: labels.get_index(x)):
             item_list = tree[key]
-            view_text.write("\n## " + str(key) + "\n\n")
+            view_text.write("\n## " + labels.get_label(key).label + "\n\n")
             text = View.__make_table_entry(item_list, out_file, empty_fig, posts_per_row)
             view_text.write(text)
 
@@ -673,7 +674,7 @@ class Posts:
             out.write("description: " + description + "\n")
 
         category = cat_labels.get_label(item.categories[0])
-        out.write("category: " + category.label + "\n")
+        out.write("category: " + category.key + "\n")
         if ORPHAN not in item.tags:
             out.write("tags:\n")
             for t in item.tags:
@@ -734,20 +735,22 @@ class Posts:
 
     @staticmethod
     def generate(item_rep: ItemRepository, posts_dir: str, default_date: Union[None, str], remote: str,
-                 categories_dir: str, rebuild_all: bool):
+                 categories_dir: str, file_linker: str, rebuild_all: bool):
         for item in item_rep.itens:
             Posts.is_new_content(item, posts_dir, rebuild_all)
             Posts.write_post(item, item_rep.cat_labels, posts_dir, default_date, remote)
-        Posts.generate_categories_files(item_rep, categories_dir)
+        Posts.generate_categories_files(item_rep, categories_dir, file_linker)
 
     @staticmethod
-    def generate_categories_files(item_rep: ItemRepository, categories_dir):
+    def generate_categories_files(item_rep: ItemRepository, categories_dir: str, file_linker: str):
         categories_dir = os.path.normpath(categories_dir)
         rmtree(categories_dir, ignore_errors=True)
         os.mkdir(categories_dir)
-        for key in item_rep.cats:
+        link_entries = []
+        for key in sorted(item_rep.cats.keys(), key=lambda x: item_rep.cat_labels.get_index(x)):
             cat = item_rep.cat_labels.get_label(key)
             if len(item_rep.cats[key]) > 0:
+                link_entries.append('<li><a href="/category/' + cat.key + '">{{ "' + cat.label + '" }}</a></li>\n')
                 with open(Util.join([categories_dir, cat.key + ".md"]), "w") as f:
                     f.write("---\n")
                     f.write("layout: category\n")
@@ -755,6 +758,13 @@ class Posts:
                     f.write("slug: " + cat.key + "\n")
                     f.write("description: " + cat.description + "\n")
                     f.write("---\n")
+
+        if file_linker:
+            text = open(file_linker, "r").read()
+            regex = r"<!--BEGIN-->\n(.*?)^\s*<!--END-->"
+            subst = "<!--BEGIN-->\\n" + "".join(link_entries) +  "\\n\\t<!--END-->"
+            text = re.sub(regex, subst, text, 0, re.MULTILINE | re.DOTALL)
+            open(file_linker, "w").write(text)
 
 
 class Main:
@@ -833,38 +843,41 @@ class Main:
 
         elif action == "index":
             print("Generating index")
-            default = {"intro": None, "sort_by": "fulltitle", "reverse_sort": False}
-            op = Config.check_and_merge(options, ["action", "file", "group_by"], default)
+            default = {"intro": None, "sort_by": "fulltitle", "reverse_sort": False, "group_by": "categories"}
+            op = Config.check_and_merge(options, ["action", "file"], default)
             Main.load_intro(op["intro"], op["file"])
             item_dict = Sorter.generate_dict(item_rep.itens, op["group_by"], op["reverse_sort"], op["sort_by"])
-            Index.generate(item_dict, op["file"])
+            Index.generate(item_dict, item_rep.cat_labels, op["file"])
 
         elif action == "summary":
             print("Generating summary")
-            default = {"intro": None}
-            op = Config.check_and_merge(options, ["action", "file", "group_by"], default)
+            default = {"intro": None, "group_by": "categories"}
+            op = Config.check_and_merge(options, ["action", "file"], default)
             Main.load_intro(op["intro"], op["file"])
             item_dict = Sorter.generate_dict(item_rep.itens, op["group_by"], False, None)
-            Summary.generate(item_dict, options["file"])
+            Summary.generate(item_dict, item_rep.cat_labels, options["file"])
 
         elif action == "view":
             print("Generating photo board")
-            d = {"intro": None, "sort_by": "fulltitle", "reverse_sort": False, "posts_per_row": 4, "empty_fig": None}
-            op = Config.check_and_merge(options, ["action", "file", "group_by"], d)
+            d = {"intro": None, "sort_by": "fulltitle", "group_by": "categories", "reverse_sort": False,
+                 "posts_per_row": 4, "empty_fig": None}
+            op = Config.check_and_merge(options, ["action", "file"], d)
             Main.load_intro(op["intro"], op["file"])
             item_dict = Sorter.generate_dict(item_rep.itens, op["group_by"], op["reverse_sort"], op["sort_by"])
-            View.generate(item_dict, op["file"], op["empty_fig"], op["posts_per_row"])
+            View.generate(item_dict, item_rep.cat_labels, op["file"], op["empty_fig"], op["posts_per_row"])
 
         elif action == "posts":
             print("Generating posts")
             default = {"default_date": None}
-            op = Config.check_and_merge(options, ["action", "dir", "default_date", "base_raw_remote", "categories_dir"],
+            op = Config.check_and_merge(options, ["action", "dir", "default_date", "base_raw_remote", "categories_dir",
+                                                  "file_linker"],
                                         default)
             posts_dir = op["dir"]
             date = op["default_date"]
             remote = op["base_raw_remote"]
             categories_dir = op["categories_dir"]
-            Posts.generate(item_rep, posts_dir, date, remote, categories_dir, rebuild_all)
+            file_linker = op["file_linker"]
+            Posts.generate(item_rep, posts_dir, date, remote, categories_dir, file_linker, rebuild_all)
 
         return item_rep
 
