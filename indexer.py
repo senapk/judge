@@ -84,6 +84,18 @@ class Util:
     @staticmethod
     def get_first(info_list: List[str]) -> str: return info_list[0] if len(info_list) > 0 else None
 
+    @staticmethod
+    def sort_keys_by(keys, group_by, labels):
+        if(group_by == "categories"):
+            return sorted(keys, key=lambda x: labels.get_index(x))
+        return sorted(keys)
+
+    @staticmethod
+    def get_key_name(key, group_by, labels):
+        if(group_by == "categories"):
+            return labels.get_label(key).label
+        return key
+
 
 class Config:
     @staticmethod
@@ -528,38 +540,30 @@ class Links:
 
 class Index:
     @staticmethod
-    def generate(tree: Dict[str, List[Item]], labels: LabelRepository, out_file: str):
-        if out_file is None:
-            return
-        readme_text = io.StringIO()
-        for key in sorted(tree.keys(), key=lambda x: labels.get_index(x)):
+    def generate(item_rep:ItemRepository, out_file, group_by, sort_by, reverse_sort) -> str:
+        tree = Sorter.generate_dict(item_rep.itens, group_by, reverse_sort, sort_by)
+        output = io.StringIO()
+        for key in Util.sort_keys_by(tree.keys(), group_by, item_rep.cat_labels):
             item_list = tree[key]
-            readme_text.write("\n## " + labels.get_label(key).label + "\n\n")
+            output.write("\n## " + Util.get_key_name(key, group_by, item_rep.cat_labels) + "\n\n")
             for item in item_list:
                 item_path = item.path_full + "#" + Util.get_md_link(item.fulltitle)
                 entry = "- [" + item.title.strip() + "](" + Util.get_directions(out_file, item_path) + ")\n"
-                readme_text.write(entry)
-        Util.create_dirs_if_needed(out_file)
-        with open(out_file, "a") as f:
-            f.write(readme_text.getvalue())
+                output.write(entry)
+        return output.getvalue()
 
 class Summary:
     @staticmethod
-    def generate(tree: Dict[str, List[Item]], labels: LabelRepository, out_file: str):
-        if out_file is None:
-            return
-        summary = io.StringIO()
-        for key in sorted(tree.keys(), key=lambda x: labels.get_index(x)):
+    def generate(item_rep: ItemRepository, group_by: str):
+        tree = Sorter.generate_dict(item_rep.itens, group_by, False, None)
+        output = io.StringIO()
+        for key in Util.sort_keys_by(tree.keys(), group_by, item_rep.cat_labels):
             item_list = tree[key]
-            summary.write("\n## " + labels.get_label(key).label + "\n")
+            output.write("\n## " + Util.get_key_name(key, group_by, item_rep.cat_labels) + "\n\n")
             for item in item_list:
-                summary.write(item.hook + " ")
-            summary.write("\n\n")
-        
-        Util.create_dirs_if_needed(out_file)
-        with open(out_file, "w") as f:
-            f.write(summary.getvalue())
-        summary.close()
+                output.write(item.hook + " ")
+            output.write("\n\n")
+        return output.getvalue()
 
 
 class View:
@@ -602,22 +606,15 @@ class View:
         return "".join(lines)
 
     @staticmethod
-    def generate(tree: Dict[str, List[Item]], labels: LabelRepository, out_file: str, empty_fig: str,
-                 posts_per_row: int):
-        if out_file is None:
-            return
-        view_text = io.StringIO()
-
-        for key in sorted(tree.keys(), key=lambda x: labels.get_index(x)):
+    def generate( item_rep:ItemRepository, out_file, group_by, sort_by, reverse_sort, empty_fig: str, posts_per_row: int):
+        tree = Sorter.generate_dict(item_rep.itens, group_by, reverse_sort, sort_by)
+        output = io.StringIO()
+        for key in Util.sort_keys_by(tree.keys(), group_by, item_rep.cat_labels):
             item_list = tree[key]
-            view_text.write("\n## " + labels.get_label(key).label + "\n\n")
+            output.write("\n## " + Util.get_key_name(key, group_by, item_rep.cat_labels) + "\n\n")
             text = View.__make_table_entry(item_list, out_file, empty_fig, posts_per_row)
-            view_text.write(text)
-
-        Util.create_dirs_if_needed(out_file)
-        with open(out_file, "a") as f:
-            f.write(view_text.getvalue())
-        view_text.close()
+            output.write(text)
+        return output.get_value()
 
 
 class Thumbs:
@@ -801,17 +798,19 @@ class Main:
             Board.update_titles(board)
 
     @staticmethod
-    def init_file(intro, out_file):
+    def save_file(intro, out_file, text):
         out_file = os.path.normpath(out_file)
         if intro:
             intro = os.path.normpath(intro)
-            with open(intro, "r") as f:
-                intro = f.read()
+            if not os.path.isfile(intro):
+                print("  fail: file", intro, "not found")
+                exit(1)
             with open(out_file, "w") as f:
-                f.write(intro)
+                f.write(open(intro, "r").read())
+                f.write(text)
         else:
-            if os.path.isfile(out_file):
-                os.remove(out_file)
+            with open(out_file, "w") as f:
+                f.write(text)
 
     def load_modules(self):
         def load_folder(item_rep, options, _args):
@@ -857,9 +856,8 @@ class Main:
             print("Generating index")
             default = {"intro": None, "sort_by": "fulltitle", "reverse_sort": False, "group_by": "categories"}
             op = Config.check_and_merge(options, ["action", "file"], default)
-            Main.init_file(op["intro"], op["file"])
-            item_dict = Sorter.generate_dict(item_rep.itens, op["group_by"], op["reverse_sort"], op["sort_by"])
-            Index.generate(item_dict, item_rep.cat_labels, op["file"])
+            text = Index.generate(item_rep, op["file"], op["group_by"], op["reverse_sort"], op["sort_by"])
+            Main.save_file(op["intro"], op["file"], text)
             return item_rep
         self.add_action("index", make_index)
 
@@ -867,9 +865,8 @@ class Main:
             print("Generating summary")
             default = {"intro": None, "group_by": "categories"}
             op = Config.check_and_merge(options, ["action", "file"], default)
-            Main.init_file(op["intro"], op["file"])
-            item_dict = Sorter.generate_dict(item_rep.itens, op["group_by"], False, None)
-            Summary.generate(item_dict, item_rep.cat_labels, options["file"])
+            text = Summary.generate(item_rep, op["group_by"])
+            Main.save_file(op["intro"], op["file"], text)
             return item_rep
         self.add_action("summary", make_summary)
 
@@ -878,9 +875,9 @@ class Main:
             d = {"intro": None, "sort_by": "fulltitle", "group_by": "categories", "reverse_sort": False,
                  "posts_per_row": 4, "empty_fig": None}
             op = Config.check_and_merge(options, ["action", "file"], d)
-            Main.init_file(op["intro"], op["file"])
-            item_dict = Sorter.generate_dict(item_rep.itens, op["group_by"], op["reverse_sort"], op["sort_by"])
-            View.generate(item_dict, item_rep.cat_labels, op["file"], op["empty_fig"], op["posts_per_row"])
+            text = View.generate(item_rep, op["out_file"], op["group_by"], op["reverse_sort"], op["sort_by"], 
+                                 op["empty_fig"], op["posts_per_row"])
+            Main.save_file(op["intro"], op["file"], text)
             return item_rep
         self.add_action("view", make_view)
 
