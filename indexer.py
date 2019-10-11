@@ -540,7 +540,6 @@ class Index:
                 entry = "- [" + item.title.strip() + "](" + Util.get_directions(out_file, item_path) + ")\n"
                 readme_text.write(entry)
         Util.create_dirs_if_needed(out_file)
-        print(readme_text.getvalue())
         with open(out_file, "a") as f:
             f.write(readme_text.getvalue())
 
