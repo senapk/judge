@@ -1,7 +1,3 @@
-## $operacoes L2 Não vou comprar comida #empty
-### @qxcode
-![](imgs/img.jpg)
-![](__capa.jpg)
-![](imgs/img.jpg)
-![](imgs/img.jpg)
+## $operacoes L2 Não comprar comida #empty ævou
+
 ![](imgs/img.jpg)

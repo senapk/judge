@@ -1,3 +1,1 @@
-## $operacoes L3 #empty
-### Descrição imponente
-![label ](teste.jpg)
+## $operacoes ð2019-12-01 L3 #empty

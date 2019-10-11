@@ -12,9 +12,9 @@
 ## Operações
 
 - [L1 Vou comprar chucrute](base/000/01.md#operacoes-l1-vou-comprar-chucrute)
-- [L2 Não vou comprar comida](base/000/Readme.md#operacoes-l2-não-vou-comprar-comida-empty)
+- [L2 Não comprar comida](base/000/Readme.md#operacoes-l2-não-comprar-comida-empty-ævou)
 - [L2 Vou comprar miojo](base/003/Readme.md#operacoes-l2-vou-comprar-miojo-comida)
-- [L3](base/001/Readme.md#operacoes-l3-empty)
+- [L3](base/001/Readme.md#operacoes-ð2019-12-01-l3-empty)
 
 ## Sem Categoria
 

@@ -6,7 +6,7 @@
         },
         {
             "action": "board", 
-            "file": ".indexer/board.md",
+            "file": "board.md",
             "sort_by": "categories"
         },
         {

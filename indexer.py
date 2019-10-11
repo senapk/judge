@@ -160,7 +160,8 @@ class Config:
             "tag": "#",
             "category": "\u00a9",
             "date": "\u00f0",
-            "author": "\u00e6"
+            "author": "\u00e6",
+            "order": "dcTta"
         }
         return symbols
 
@@ -189,6 +190,9 @@ class Config:
             print("Loading symbols")
             keys = [x for x in Config.get_default_symbols().keys()]
             Config.check_and_merge(symbols, keys)
+            if sorted(symbols["order"]) != sorted(Config.get_default_symbols()["order"]):
+                print("  error: symbols key 'order' should be a anagram of 'dcTta'")
+                exit(1)
             return symbols
 
     @staticmethod
@@ -246,7 +250,7 @@ class Item:
         self.hook = path.split(os.sep)[-2]                                 # 000
         self.filename = path.split(os.sep)[-1]                             # Readme.md
         self.cover = self.__get_cover()                                    # cover.jpg ou ../001/cover.jpg
-        self.fulltitle = self.__sort_fulltitle()                    # first line content withoub the \n
+        self.fulltitle = self.__sort_fulltitle()                           # first line content withoub the \n
         if crude_title != self.fulltitle:
             with open(path, "w") as f:
                 f.write(self.fulltitle + "\n" + self.content)
@@ -292,19 +296,25 @@ class Item:
         out = []
         if self.level:
             out += [self.level]
-        if self.date:
-            out += [symbols["date"] + self.date]
-        for cat in self.categories:
-            if cat != Label.ORPHAN:
-                out += [symbols["category"] + cat]
-        if self.title:
-            out += [self.title]
-        for tag in self.tags:
-            if tag != Label.ORPHAN:
-                out += [symbols["tag"] + tag]
-        for author in self.authors:
-            if author != Label.ORPHAN:
-                out += [symbols["author"] + author]
+        for s in symbols["order"]:
+            if s == 'd':
+                if self.date:
+                    out += [symbols["date"] + self.date]
+            if s == 'c':
+                for cat in self.categories:
+                    if cat != Label.ORPHAN:
+                        out += [symbols["category"] + cat]
+            if s == 'T':
+                if self.title:
+                    out += [self.title]
+            if s == 't':
+                for tag in self.tags:
+                    if tag != Label.ORPHAN:
+                        out += [symbols["tag"] + tag]
+            if s == 'a':
+                for author in self.authors:
+                    if author != Label.ORPHAN:
+                        out += [symbols["author"] + author]
         return " ".join(out)
 
     def __str__(self):
