@@ -1,11 +1,11 @@
 ---
 layout: post
-title: Vou comprar miojo
+title: L2 Vou comprar miojo
 image: https://raw.githubusercontent.com/senapk/senapk.github.io/master/base/003/__capa.jpg
 optimized_image: https://raw.githubusercontent.com/senapk/senapk.github.io/master/base/.thumb/003/Readme.jpg
 subtitle: Aqui seria o subtítutlo legal? <br> multi linha <br> _asdfasfd ads ds__
 description: Aqui seria o subtítutlo legal? <br> multi linha <br> _asdfasfd ads ds__
-category: Repetição
+category: operacoes
 tags:
   - comida
 ---

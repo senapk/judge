@@ -4,23 +4,20 @@
 [Categorias](categorias.md#qxcode) | [Foto Board](view.md#qxcode) |  [Sumário](summary.md#qxcode)
 
 
-## Operações
-
-- [](base/001/Readme.md#operacoes-empty)
-- [Não vou comprar comida](base/000/Readme.md#operacoes-não-vou-comprar-comida-empty)
-
 ## Seleção
 
-- [123](base/002/Readme.md#selecao-123-sdf-empty)
+- [L1 123](base/002/Readme.md#selecao-l1-123-sdf-empty)
+- [L2 Apenas um texto](base/005/Readme.md#selecao-l2-apenas-um-texto)
 
-## Repetição
+## Operações
 
-- [Vou comprar chucrute](base/000/01.md#repeticao-vou-comprar-chucrute)
-- [Vou comprar miojo](base/003/Readme.md#repeticao-vou-comprar-miojo-comida)
+- [L1 Vou comprar chucrute](base/000/01.md#operacoes-l1-vou-comprar-chucrute)
+- [L2 Não vou comprar comida](base/000/Readme.md#operacoes-l2-não-vou-comprar-comida-empty)
+- [L2 Vou comprar miojo](base/003/Readme.md#operacoes-l2-vou-comprar-miojo-comida)
+- [L3](base/001/Readme.md#operacoes-l3-empty)
 
 ## Sem Categoria
 
-- [Apenas um texto](base/005/Readme.md#apenas-um-texto)
 - [Apenas um texto](base/006/Readme.md#apenas-um-texto-empty)
 - [Um item novo](base/007/Readme.md#um-item-novo-empty)
 - [novo texto rulex](base/008/Readme.md#novo-texto-rulex-empty)

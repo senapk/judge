@@ -84,11 +84,11 @@ class Util:
     @staticmethod
     def get_first(info_list: List[str]) -> str: return info_list[0] if len(info_list) > 0 else None
 
-    @staticmethod
-    def sort_keys_by(keys, group_by, labels):
-        if(group_by == "categories"):
-            return sorted(keys, key=lambda x: labels.get_index(x))
-        return sorted(keys)
+#    @staticmethod
+#    def sort_keys_lambda(keys, group_by, labels):
+#        if(group_by == "categories"):
+#            return sorted(keys, key=lambda x: labels.get_index(x))
+#        return sorted(keys)
 
     @staticmethod
     def get_key_name(key, group_by, labels):
@@ -361,16 +361,23 @@ class LabelRepository:
                     self.labels[key] = Label(index, key, label, description)
                     index += 1
 
-    def save_on_file(self, itens_dict: Dict[str, List[Item]]):
-        for key in itens_dict:
-            self.check(key)  # inserindo as chaves que tem nos itens e faltam nos labels
-        for key in self.labels:
-            if key not in itens_dict:
-                itens_dict[key] = []
+    def save_on_file(self, item_list: List[Item]):
+        qtds: Dict[str, int] = {}
+        for item in item_list:
+            for cat in item.categories:
+                if cat not in qtds:
+                    qtds[cat] = 1
+                else:
+                    qtds[cat] += 1
+                self.check(cat)  # inserindo as chaves que tem nos itens e faltam nos labels
+        for key in self.labels.keys():
+            if key not in qtds:
+                qtds[key] = 0
+
         with open(self.source, "w") as out:
             write = csv.writer(out, delimiter=',', quotechar='"')
             for x in sorted(self.labels.values()):  # ordena pelo indice
-                write.writerow([len(itens_dict[x.key]), x.key, x.label, x.description])
+                write.writerow([qtds[x.key], x.key, x.label, x.description])
 
 
 class Sorter:
@@ -382,23 +389,22 @@ class Sorter:
             exit(1)
 
     @staticmethod
-    def sorted_by_key(itens: List[Item], key: str, reverse: bool = False) -> List[Item]:
+    def sorted_by_key(itens: List[Item], labels: LabelRepository, key: str, reverse: bool = False) -> List[Item]:
         if len(itens) == 0:
             return []
         Sorter.test_key(itens[0], key)
         if type(getattr(itens[0], key)) is list:
-            return sorted(itens, key=lambda x: getattr(x, key)[0], reverse=reverse)
+            if key == "categories":
+                return sorted(itens, key=lambda x: labels.get_index(getattr(x, key)[0]), reverse=reverse)
+            else:
+                return sorted(itens, key=lambda x: getattr(x, key)[0], reverse=reverse)
         return sorted(itens, key=lambda x: getattr(x, key), reverse=reverse)
 
     @staticmethod
-    def generate_dict(itens: List[Item], group_by: str, reverse_sort: bool, sort_by: Union[None, str]) \
-            -> Dict[str, List[Item]]:
+    def group_by(itens: List[Item], labels: LabelRepository, group_by, reverse_sort) -> List[Union[str, List[Item]]]:
         tree = {}
         if len(itens) > 0:
-            if group_by:
-                Sorter.test_key(itens[0], group_by)
-            if sort_by:
-                Sorter.test_key(itens[0], sort_by)
+            Sorter.test_key(itens[0], group_by)
         for item in itens:
             data = getattr(item, group_by)
             if data is None:
@@ -415,10 +421,16 @@ class Sorter:
                     if elem not in tree:
                         tree[elem] = []
                     tree[elem].append(item)
-        if sort_by:
-            for key in tree:
-                tree[key].sort(key=lambda x: getattr(x, sort_by), reverse=reverse_sort)
-        return tree
+        output: List[Union[str, List[Item]]] = []
+
+        for key in tree.keys():
+            tree[key].sort(key=lambda x: x.fulltitle)
+            output.append([key, tree[key]])
+        if group_by == "categories":
+            output.sort(key=lambda x: labels.get_index(x[0]), reverse=reverse_sort)
+        else:
+            output.sort(key=lambda x: x[0], reverse=reverse_sort)
+        return output
 
 
 class ItemRepository:
@@ -428,12 +440,9 @@ class ItemRepository:
         self.itens: List[Item] = []
         self.symbols: Dict[str, str] = Config.load_symbols(self.get_symbols_file_path())
         self.load_itens()
-        self.cats: Dict[str, List[Item]] = Sorter.generate_dict(self.itens, "categories", False, None)
-        self.tags: Dict[str, List[Item]] = Sorter.generate_dict(self.itens, "tags", False, None)
-        self.authors: Dict[str, List[Item]] = Sorter.generate_dict(self.itens, "authors", False, None)
-
         self.cat_labels = LabelRepository(self.get_categories_file_path())
-        self.cat_labels.save_on_file(self.cats)
+        self.cat_labels.save_on_file(self.itens)
+        self.cats = Sorter.group_by(self.itens, self.cat_labels, "categories", False)
 
     def __test_exists(self):
         if not os.path.isdir(self.base):
@@ -447,7 +456,7 @@ class ItemRepository:
         return Util.join([self.base, ".symbols.json"])
 
     def load_itens(self):
-        for (root, dirs, files) in os.walk(self.base, topdown=True):
+        for (root, _dirs, files) in os.walk(self.base, topdown=True):
             folder = root.split(os.sep)[-1]
             if folder.startswith("__") or folder.startswith("."):
                 continue
@@ -471,7 +480,7 @@ class Board:
         f.close()
         for line in names_list:
             parts = line.split(":")
-            path = parts[0].strip()[3:-1] #removing []( )
+            path = parts[0].strip()[3:-1]  # removing []( )
             fulltitle = parts[1].strip()
             description = parts[2].strip()
             
@@ -480,7 +489,6 @@ class Board:
             hook = vet[-2]
             base = vet[-3] if len(vet) > 2 else ""
             path = Util.join([base, hook, filename])
-                            
 
             if not os.path.isfile(path):
                 Util.create_dirs_if_needed(path)
@@ -502,7 +510,11 @@ class Board:
 
     @staticmethod
     def generate(item_rep: ItemRepository, board_file: str, sort_by: str, reverse_sort: bool):
-        itens = Sorter.sorted_by_key(item_rep.itens, sort_by, reverse_sort)
+        groups = Sorter.group_by(item_rep.itens, item_rep.cat_labels, sort_by, reverse_sort)
+        itens = []
+        for _key, item_list in groups:
+            itens += item_list
+
         paths = []
         full_titles = []
         subtitles = []
@@ -540,11 +552,10 @@ class Links:
 
 class Index:
     @staticmethod
-    def generate(item_rep:ItemRepository, out_file, group_by, sort_by, reverse_sort) -> str:
-        tree = Sorter.generate_dict(item_rep.itens, group_by, reverse_sort, sort_by)
+    def generate(item_rep: ItemRepository, out_file, group_by, reverse_sort) -> str:
+        groups = Sorter.group_by(item_rep.itens, item_rep.cat_labels, group_by, reverse_sort)
         output = io.StringIO()
-        for key in Util.sort_keys_by(tree.keys(), group_by, item_rep.cat_labels):
-            item_list = tree[key]
+        for key, item_list in groups:
             output.write("\n## " + Util.get_key_name(key, group_by, item_rep.cat_labels) + "\n\n")
             for item in item_list:
                 item_path = item.path_full + "#" + Util.get_md_link(item.fulltitle)
@@ -552,13 +563,13 @@ class Index:
                 output.write(entry)
         return output.getvalue()
 
+
 class Summary:
     @staticmethod
     def generate(item_rep: ItemRepository, group_by: str):
-        tree = Sorter.generate_dict(item_rep.itens, group_by, False, None)
+        groups = Sorter.group_by(item_rep.itens, item_rep.cat_labels, group_by, False)
         output = io.StringIO()
-        for key in Util.sort_keys_by(tree.keys(), group_by, item_rep.cat_labels):
-            item_list = tree[key]
+        for key, item_list in groups:
             output.write("\n## " + Util.get_key_name(key, group_by, item_rep.cat_labels) + "\n\n")
             for item in item_list:
                 output.write(item.hook + " ")
@@ -606,15 +617,14 @@ class View:
         return "".join(lines)
 
     @staticmethod
-    def generate( item_rep:ItemRepository, out_file, group_by, sort_by, reverse_sort, empty_fig: str, posts_per_row: int):
-        tree = Sorter.generate_dict(item_rep.itens, group_by, reverse_sort, sort_by)
+    def generate( item_rep:ItemRepository, out_file, group_by, reverse_sort, empty_fig: str, posts_per_row: int):
+        groups = Sorter.group_by(item_rep.itens, item_rep.cat_labels, group_by, reverse_sort)
         output = io.StringIO()
-        for key in Util.sort_keys_by(tree.keys(), group_by, item_rep.cat_labels):
-            item_list = tree[key]
+        for key, item_list in groups:
             output.write("\n## " + Util.get_key_name(key, group_by, item_rep.cat_labels) + "\n\n")
             text = View.__make_table_entry(item_list, out_file, empty_fig, posts_per_row)
             output.write(text)
-        return output.get_value()
+        return output.getvalue()
 
 
 class Thumbs:
@@ -753,9 +763,9 @@ class Posts:
         rmtree(categories_dir, ignore_errors=True)
         os.mkdir(categories_dir)
         link_entries = []
-        for key in sorted(item_rep.cats.keys(), key=lambda x: item_rep.cat_labels.get_index(x)):
+        for key, itens in item_rep.cats:
             cat = item_rep.cat_labels.get_label(key)
-            if len(item_rep.cats[key]) > 0:
+            if len(itens) > 0:
                 link_entries.append('<li><a href="/category/' + cat.key + '">{{ "' + cat.label + '" }}</a></li>\n')
                 with open(Util.join([categories_dir, cat.key + ".md"]), "w") as f:
                     f.write("---\n")
@@ -813,7 +823,7 @@ class Main:
                 f.write(text)
 
     def load_modules(self):
-        def load_folder(item_rep, options, _args):
+        def load_folder(_item_rep, options, _args):
             print("Loading folder")
             Config.check_and_merge(options, ["action", "dir"])
             item_rep = ItemRepository(options["dir"])
@@ -822,7 +832,7 @@ class Main:
 
         def make_board(item_rep, options, _args):
             print("Generating board")
-            optional = {"sort_by": "fulltitle", "reverse_sort": False}
+            optional = {"sort_by": "categories", "reverse_sort": False}
             op = Config.check_and_merge(options, ["action", "file"], optional)
             Board.generate(item_rep, op["file"], op["sort_by"], op["reverse_sort"])
             return item_rep
@@ -854,9 +864,9 @@ class Main:
 
         def make_index(item_rep, options, _args):
             print("Generating index")
-            default = {"intro": None, "sort_by": "fulltitle", "reverse_sort": False, "group_by": "categories"}
+            default = {"intro": None, "reverse_sort": False, "group_by": "categories"}
             op = Config.check_and_merge(options, ["action", "file"], default)
-            text = Index.generate(item_rep, op["file"], op["group_by"], op["reverse_sort"], op["sort_by"])
+            text = Index.generate(item_rep, op["file"], op["group_by"], op["reverse_sort"])
             Main.save_file(op["intro"], op["file"], text)
             return item_rep
         self.add_action("index", make_index)
@@ -872,15 +882,15 @@ class Main:
 
         def make_view(item_rep, options, _args):
             print("Generating photo board")
-            d = {"intro": None, "sort_by": "fulltitle", "group_by": "categories", "reverse_sort": False,
+            d = {"intro": None, "group_by": "categories", "reverse_sort": False,
                  "posts_per_row": 4, "empty_fig": None}
             op = Config.check_and_merge(options, ["action", "file"], d)
-            text = View.generate(item_rep, op["out_file"], op["group_by"], op["reverse_sort"], op["sort_by"], 
-                                 op["empty_fig"], op["posts_per_row"])
+            text = View.generate(item_rep, op["file"], op["group_by"], op["reverse_sort"], op["empty_fig"],
+                                 op["posts_per_row"])
             Main.save_file(op["intro"], op["file"], text)
             return item_rep
         self.add_action("view", make_view)
-
+        
         def make_posts(item_rep, options, args):
             print("Generating posts")
             default = {"default_date": None}
