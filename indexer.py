@@ -459,9 +459,16 @@ class Board:
         f.close()
         for line in names_list:
             parts = line.split(":")
-            path = parts[0].strip()[6:-1]
+            path = parts[0].strip()[3:-1] #removing []( )
             fulltitle = parts[1].strip()
             description = parts[2].strip()
+            
+            vet = path.split(os.sep)
+            filename = vet[-1]
+            hook = vet[-2]
+            base = vet[-3] if len(vet) > 2 else ""
+            path = Util.join([base, hook, filename])
+                            
 
             if not os.path.isfile(path):
                 Util.create_dirs_if_needed(path)
@@ -533,9 +540,9 @@ class Index:
                 entry = "- [" + item.title.strip() + "](" + Util.get_directions(out_file, item_path) + ")\n"
                 readme_text.write(entry)
         Util.create_dirs_if_needed(out_file)
+        print(readme_text.getvalue())
         with open(out_file, "a") as f:
             f.write(readme_text.getvalue())
-
 
 class Summary:
     @staticmethod
@@ -551,7 +558,7 @@ class Summary:
             summary.write("\n\n")
         
         Util.create_dirs_if_needed(out_file)
-        with open(out_file, "a") as f:
+        with open(out_file, "w") as f:
             f.write(summary.getvalue())
         summary.close()
 
@@ -693,6 +700,10 @@ class Posts:
         subst = "[\\1](" + remote + "/" + item.hook + "/" + "\\2)"
         text = re.sub(regex, subst, text, 0, re.MULTILINE)  # creating full url for links
 
+        regex = r"<img src=\"([^:]*?)\""
+        subst = '<img src=\"' + remote + "/" + item.hook + "/" + "\\1" + '\"'
+        text = re.sub(regex, subst, text, 0, re.MULTILINE)
+
         name = "%s-c%02d-%s-%s" % (item.date, category.index, category.key, item.title)
         name = Util.get_md_link(name) + "-@" + item.hook + ".md"
         while "--" in name:
@@ -791,12 +802,10 @@ class Main:
             Board.update_titles(board)
 
     @staticmethod
-    def load_intro(intro, out_file):
-        if intro is None:
-            return
-        intro = os.path.normpath(intro)
+    def init_file(intro, out_file):
         out_file = os.path.normpath(out_file)
         if intro:
+            intro = os.path.normpath(intro)
             with open(intro, "r") as f:
                 intro = f.read()
             with open(out_file, "w") as f:
@@ -849,7 +858,7 @@ class Main:
             print("Generating index")
             default = {"intro": None, "sort_by": "fulltitle", "reverse_sort": False, "group_by": "categories"}
             op = Config.check_and_merge(options, ["action", "file"], default)
-            Main.load_intro(op["intro"], op["file"])
+            Main.init_file(op["intro"], op["file"])
             item_dict = Sorter.generate_dict(item_rep.itens, op["group_by"], op["reverse_sort"], op["sort_by"])
             Index.generate(item_dict, item_rep.cat_labels, op["file"])
             return item_rep
@@ -859,7 +868,7 @@ class Main:
             print("Generating summary")
             default = {"intro": None, "group_by": "categories"}
             op = Config.check_and_merge(options, ["action", "file"], default)
-            Main.load_intro(op["intro"], op["file"])
+            Main.init_file(op["intro"], op["file"])
             item_dict = Sorter.generate_dict(item_rep.itens, op["group_by"], False, None)
             Summary.generate(item_dict, item_rep.cat_labels, options["file"])
             return item_rep
@@ -870,11 +879,10 @@ class Main:
             d = {"intro": None, "sort_by": "fulltitle", "group_by": "categories", "reverse_sort": False,
                  "posts_per_row": 4, "empty_fig": None}
             op = Config.check_and_merge(options, ["action", "file"], d)
-            self.load_intro(op["intro"], op["file"])
+            Main.init_file(op["intro"], op["file"])
             item_dict = Sorter.generate_dict(item_rep.itens, op["group_by"], op["reverse_sort"], op["sort_by"])
             View.generate(item_dict, item_rep.cat_labels, op["file"], op["empty_fig"], op["posts_per_row"])
             return item_rep
-
         self.add_action("view", make_view)
 
         def make_posts(item_rep, options, args):
