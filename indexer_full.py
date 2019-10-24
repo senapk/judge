@@ -15,7 +15,7 @@ from typing import Dict, List, Tuple, Union, Any, Callable
 class Util:
 
     @staticmethod
-    def join(path_list           )       :
+    def join(path_list: List[str]) -> str:
         path_list = [os.path.normpath(x) for x in path_list]
         path = ""
         for x in path_list:
@@ -23,11 +23,11 @@ class Util:
         return os.path.normpath(path)
 
     @staticmethod
-    def normpath(file     )       :
+    def normpath(file: str) -> str:
         return os.path.normpath(file)
 
     @staticmethod
-    def extract_title_content(line                  )       :
+    def extract_title_content(line: Union[None, str]) -> str:
         if line is None or len(line) == 0:
             return ""
         if line[-1] == "\n":
@@ -38,13 +38,13 @@ class Util:
         return " ".join(words)
 
     @staticmethod
-    def get_directions(source     , destination     )       :
+    def get_directions(source: str, destination: str) -> str:
         if source == '.' or source == './':
             return destination
         return Util.join(["../" * (len(source.split(os.sep)) - 1), destination])
 
     @staticmethod
-    def split_path(path     )                   :
+    def split_path(path: str) -> Tuple[str, str]:
         path = Util.normpath(path)
         vet = path.split(os.path.sep)
         if len(vet) == 1:
@@ -52,13 +52,13 @@ class Util:
         return os.sep.join(vet[0:-1]), vet[-1]
 
     @staticmethod
-    def create_dirs_if_needed(path     )        :
+    def create_dirs_if_needed(path: str) -> None:
         root, file = Util.split_path(path)
         if not os.path.isdir(root):
             os.makedirs(root)
 
     @staticmethod
-    def get_md_link(title                  )       :
+    def get_md_link(title: Union[None, str]) -> str:
         if title is None:
             return ""
         title = Util.extract_title_content(title)
@@ -74,14 +74,14 @@ class Util:
         return out
 
     @staticmethod
-    def only_hashtags(x     )        : return len(x) == x.count("#")
+    def only_hashtags(x: str) -> bool: return len(x) == x.count("#")
 
     @staticmethod
-    def split_list(l           , p     )                               :
+    def split_list(l: List[str], p: str) -> Tuple[List[str], List[str]]:
         return [x[1:] for x in l if x.startswith(p)], [x for x in l if not x.startswith(p)]
 
     @staticmethod
-    def get_first(info_list           )       : return info_list[0] if len(info_list) > 0 else None
+    def get_first(info_list: List[str]) -> str: return info_list[0] if len(info_list) > 0 else None
 
 #    @staticmethod
 #    def sort_keys_lambda(keys, group_by, labels):
@@ -193,7 +193,7 @@ class Config:
             return symbols
 
     @staticmethod
-    def check_and_merge(received                , needed           , optional                 = None)                  :
+    def check_and_merge(received: Dict[str, Any], needed: List[str], optional: Dict[str, Any] = None) -> Dict[str, Any]:
         all_keys = needed[:]
         if optional:
             all_keys += [x for x in optional.keys()]
@@ -321,14 +321,14 @@ class Item:
 class Label:
     ORPHAN = "__orphan__"
     @staticmethod
-    def create_by_key(key     ):
+    def create_by_key(key: str):
         return Label(100, key, key, key)
 
     def __init__(self, index=0, key="", label="", description=""):
-        self.index      = index
-        self.key      = key
-        self.label      = label
-        self.description      = description
+        self.index: int = index
+        self.key: str = key
+        self.label: str = label
+        self.description: str = description
 
     def __lt__(self, other):
         return self.index < other.index
@@ -338,12 +338,12 @@ class Label:
 
 
 class LabelRepository:
-    def __init__(self, source     ):
-        self.source      = source
-        self.labels                   = {}
+    def __init__(self, source: str):
+        self.source: str = source
+        self.labels: Dict[str, Label] = {}
         self.__load_from_file()
 
-    def get_label(self, key                  )         :
+    def get_label(self, key: Union[None, str]) -> Label:
         if key is None:
             key = Label.ORPHAN
         if key in self.labels:
@@ -351,14 +351,14 @@ class LabelRepository:
         self.labels[key] = Label.create_by_key(key)
         return self.labels[key]
 
-    def get_index(self, key     )       :
+    def get_index(self, key: str) -> int:
         return self.get_label(key).index
 
-    def check(self, key     )        :
+    def check(self, key: str) -> None:
         if key not in self.labels:
             self.labels[key] = Label.create_by_key(key)
 
-    def __load_from_file(self)        :
+    def __load_from_file(self) -> None:
         if os.path.isfile(self.source):
             with open(self.source, 'r') as f:
                 spam = csv.reader(f, delimiter=',', quotechar='"', skipinitialspace=True)
@@ -368,8 +368,8 @@ class LabelRepository:
                     self.labels[key] = Label(index, key, label, description)
                     index += 1
 
-    def save_on_file(self, item_list            ):
-        qtds                 = {}
+    def save_on_file(self, item_list: List[Item]):
+        qtds: Dict[str, int] = {}
         for item in item_list:
             for cat in item.categories:
                 if cat not in qtds:
@@ -389,14 +389,14 @@ class LabelRepository:
 
 class Sorter:
     @staticmethod
-    def test_key(item      , key     ):
+    def test_key(item: Item, key: str):
         if not hasattr(item, key):
             print("    fail: Item doesn't have the key", key)
             print("    The options are ", ["title", "fulltitle", "hook", "categories", "tags", "authors", "path_full"])
             exit(1)
 
     @staticmethod
-    def sorted_by_key(itens            , labels                 , key     , reverse       = False)              :
+    def sorted_by_key(itens: List[Item], labels: LabelRepository, key: str, reverse: bool = False) -> List[Item]:
         if len(itens) == 0:
             return []
         Sorter.test_key(itens[0], key)
@@ -408,7 +408,7 @@ class Sorter:
         return sorted(itens, key=lambda x: getattr(x, key), reverse=reverse)
 
     @staticmethod
-    def group_by(itens            , labels                 , group_by, reverse_sort)                                :
+    def group_by(itens: List[Item], labels: LabelRepository, group_by, reverse_sort) -> List[Union[str, List[Item]]]:
         tree = {}
         if len(itens) > 0:
             Sorter.test_key(itens[0], group_by)
@@ -428,7 +428,7 @@ class Sorter:
                     if elem not in tree:
                         tree[elem] = []
                     tree[elem].append(item)
-        output                               = []
+        output: List[Union[str, List[Item]]] = []
 
         for key in tree.keys():
             tree[key].sort(key=lambda x: x.fulltitle)
@@ -441,11 +441,11 @@ class Sorter:
 
 
 class ItemRepository:
-    def __init__(self, base     ):
+    def __init__(self, base: str):
         self.base = os.path.normpath(base)
         self.__test_exists()
-        self.itens             = []
-        self.symbols                 = Config.load_symbols(self.get_symbols_file_path())
+        self.itens: List[Item] = []
+        self.symbols: Dict[str, str] = Config.load_symbols(self.get_symbols_file_path())
         self.load_itens()
         self.cat_labels = LabelRepository(self.get_categories_file_path())
         self.cat_labels.save_on_file(self.itens)
@@ -518,7 +518,7 @@ class Board:
                         f.write(new_first_line + new_description + content)
 
     @staticmethod
-    def generate(item_rep                , board_file     , sort_by     , reverse_sort      ):
+    def generate(item_rep: ItemRepository, board_file: str, sort_by: str, reverse_sort: bool):
         groups = Sorter.group_by(item_rep.itens, item_rep.cat_labels, sort_by, reverse_sort)
         itens = []
         for _key, item_list in groups:
@@ -548,7 +548,7 @@ class Board:
 
 class Links:
     @staticmethod
-    def generate(item_rep                , links_dir     ):
+    def generate(item_rep: ItemRepository, links_dir: str):
         if os.path.isdir(links_dir):
             rmtree(links_dir, ignore_errors=True)
         if not os.path.isdir(links_dir):
@@ -561,7 +561,7 @@ class Links:
 
 class Index:
     @staticmethod
-    def generate(item_rep                , out_file, group_by, reverse_sort)       :
+    def generate(item_rep: ItemRepository, out_file, group_by, reverse_sort) -> str:
         groups = Sorter.group_by(item_rep.itens, item_rep.cat_labels, group_by, reverse_sort)
         output = io.StringIO()
         for key, item_list in groups:
@@ -575,7 +575,7 @@ class Index:
 
 class Summary:
     @staticmethod
-    def generate(item_rep                , group_by     ):
+    def generate(item_rep: ItemRepository, group_by: str):
         groups = Sorter.group_by(item_rep.itens, item_rep.cat_labels, group_by, False)
         output = io.StringIO()
         for key, item_list in groups:
@@ -588,14 +588,14 @@ class Summary:
 
 class View:
     @staticmethod
-    def __make_row(data                 ):
+    def __make_row(data: List[List[str]]):
         a = "|".join([x[0] for x in data]) + "\n"
         b = "|".join(["-"] * len(data)) + "\n"
         c = "|".join([x[1] for x in data]) + "\n\n\n"
         return a, b, c
 
     @staticmethod
-    def __make_table_entry(item_list            , out_file     , empty_fig     , posts_per_row     ):
+    def __make_table_entry(item_list: List[Item], out_file: str, empty_fig: str, posts_per_row: int):
         data = []
         for item in item_list:
             thumb = Thumbs.get_thumb_full(item)
@@ -626,7 +626,7 @@ class View:
         return "".join(lines)
 
     @staticmethod
-    def generate( item_rep               , out_file, group_by, reverse_sort, empty_fig     , posts_per_row     ):
+    def generate( item_rep:ItemRepository, out_file, group_by, reverse_sort, empty_fig: str, posts_per_row: int):
         groups = Sorter.group_by(item_rep.itens, item_rep.cat_labels, group_by, reverse_sort)
         output = io.StringIO()
         for key, item_list in groups:
@@ -638,27 +638,27 @@ class View:
 
 class Thumbs:
     @staticmethod
-    def generate(item_rep                , width     , height     , rebuild_all      ):
+    def generate(item_rep: ItemRepository, width: int, height: int, rebuild_all: bool):
         itens = sorted(item_rep.itens, key=lambda x: x.hook)
         for item in itens:
             Thumbs.make(item, width, height, rebuild_all)
 
     # return .thumb/hook/Readme.jpg
     @staticmethod
-    def get_thumb(item      )                    :
+    def get_thumb(item: Item) -> Union[None, str]:
         if item.cover:
             return Util.join([".thumb", item.hook, item.filename[:-2] + "jpg"])
         return None
 
     # return "arcade/base/.thumb/hook/Readme.jpg"
     @staticmethod
-    def get_thumb_full(item      ):
+    def get_thumb_full(item: Item):
         if item.cover:
             return Util.join([item.base, Thumbs.get_thumb(item)])
         return None
 
     @staticmethod
-    def make(item      , width     , height     , rebuild_all      ):
+    def make(item: Item, width: int, height: int, rebuild_all: bool):
         thumb_full = Thumbs.get_thumb_full(item)
         if thumb_full is None:
             print("  warning: thumb skipping, missing cover on", item.path_full)
@@ -673,7 +673,7 @@ class Thumbs:
 
 class Posts:
     @staticmethod
-    def write_post(item      , cat_labels                 , posts_dir     , default_date                  , remote):
+    def write_post(item: Item, cat_labels: LabelRepository, posts_dir: str, default_date: Union[None, str], remote):
         if item.date is None and default_date is None:
             print("  warning: Date missing, using on", item.path_full, ", skipping")
             return
@@ -727,7 +727,7 @@ class Posts:
             f.write(text)
 
     @staticmethod
-    def get_tests_link(item      ):
+    def get_tests_link(item: Item):
         out = io.StringIO()
         out.write("\n## Tests\n")
         test_path = Util.join([item.base, item.hook, "t.tio"])
@@ -737,7 +737,7 @@ class Posts:
         return ""
 
     @staticmethod 
-    def find_old_posts(item      , posts_dir     ):
+    def find_old_posts(item: Item, posts_dir: str):
         files = os.listdir(posts_dir)
         files = [Util.join([posts_dir, x]) for x in files]
         files = [x for x in files if os.path.isfile(x)]
@@ -746,7 +746,7 @@ class Posts:
 
     # return if content is new
     @staticmethod
-    def is_new_content(item      , posts_dir     , rebuild_all      ):
+    def is_new_content(item: Item, posts_dir: str, rebuild_all: bool):
         files = Posts.find_old_posts(item, posts_dir)
         if len(files) == 0:
             return True
@@ -759,15 +759,15 @@ class Posts:
         return is_new
 
     @staticmethod
-    def generate(item_rep                , posts_dir     , default_date                  , remote     ,
-                 categories_dir     , file_linker     , rebuild_all      ):
+    def generate(item_rep: ItemRepository, posts_dir: str, default_date: Union[None, str], remote: str,
+                 categories_dir: str, file_linker: str, rebuild_all: bool):
         for item in item_rep.itens:
             Posts.is_new_content(item, posts_dir, rebuild_all)
             Posts.write_post(item, item_rep.cat_labels, posts_dir, default_date, remote)
         Posts.generate_categories_files(item_rep, categories_dir, file_linker)
 
     @staticmethod
-    def generate_categories_files(item_rep                , categories_dir     , file_linker     ):
+    def generate_categories_files(item_rep: ItemRepository, categories_dir: str, file_linker: str):
         categories_dir = os.path.normpath(categories_dir)
         rmtree(categories_dir, ignore_errors=True)
         os.mkdir(categories_dir)
@@ -793,13 +793,13 @@ class Posts:
 
 
 class Main:
-    #ctions: Dict[str, Callable[[ItemRepository, Dict[str, Any], Any], ItemRepository]]
+    actions: Dict[str, Callable[[ItemRepository, Dict[str, Any], Any], ItemRepository]]
 
     def __init__(self):
         self.actions = {}
         self.load_modules()
 
-    def add_action(self, key     , fn                                                                 )        :
+    def add_action(self, key: str, fn: Callable[[ItemRepository, Dict[str, Any], Any], ItemRepository]) -> None:
         self.actions[key] = fn
 
     @staticmethod
@@ -914,7 +914,7 @@ class Main:
             return item_rep
         self.add_action("posts", make_posts)
 
-    def execute_actions(self, options                , item_rep                , args):
+    def execute_actions(self, options: Dict[str, str], item_rep: ItemRepository, args):
         for key in self.actions:
             if key == options["action"]:
                 item_rep = self.actions[key](item_rep, options, args)
