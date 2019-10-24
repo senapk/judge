@@ -4,6 +4,11 @@
 [Categorias](categorias.md#qxcode) | [Foto Board](view.md#qxcode) |  [Sumário](summary.md#qxcode)
 
 
+## Links
+- [Seleção](#seleção)
+- [Operações](#operações)
+- [Sem Categoria](#sem-categoria)
+
 ## Seleção
 
 [![](https://placekitten.com/320/181)](base/002/Readme.md#selecao-l1-123-sdf-empty)|[![](https://placekitten.com/320/181)](base/005/Readme.md#selecao-l2-apenas-um-texto)|-|-

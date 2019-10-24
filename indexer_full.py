@@ -564,6 +564,11 @@ class Index:
     def generate(item_rep: ItemRepository, out_file, group_by, reverse_sort) -> str:
         groups = Sorter.group_by(item_rep.itens, item_rep.cat_labels, group_by, reverse_sort)
         output = io.StringIO()
+        output.write("\n## Links\n")
+        for key, _item_list in groups:
+            label = Util.get_key_name(key, group_by, item_rep.cat_labels)
+            link = Util.get_md_link(label)
+            output.write("- [" + label + "](#" + link + ")\n")
         for key, item_list in groups:
             output.write("\n## " + Util.get_key_name(key, group_by, item_rep.cat_labels) + "\n\n")
             for item in item_list:
@@ -629,6 +634,11 @@ class View:
     def generate( item_rep:ItemRepository, out_file, group_by, reverse_sort, empty_fig: str, posts_per_row: int):
         groups = Sorter.group_by(item_rep.itens, item_rep.cat_labels, group_by, reverse_sort)
         output = io.StringIO()
+        output.write("\n## Links\n")
+        for key, _item_list in groups:
+            label = Util.get_key_name(key, group_by, item_rep.cat_labels)
+            link = Util.get_md_link(label)
+            output.write("- [" + label + "](#" + link + ")\n")
         for key, item_list in groups:
             output.write("\n## " + Util.get_key_name(key, group_by, item_rep.cat_labels) + "\n\n")
             text = View.__make_table_entry(item_list, out_file, empty_fig, posts_per_row)

@@ -4,6 +4,11 @@
 [Categorias](categorias.md#qxcode) | [Foto Board](view.md#qxcode) |  [Sumário](summary.md#qxcode)
 
 
+## Links
+- [Seleção](#seleção)
+- [Operações](#operações)
+- [Sem Categoria](#sem-categoria)
+
 ## Seleção
 
 - [L1 123](base/002/Readme.md#selecao-l1-123-sdf-empty)
