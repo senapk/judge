@@ -15,7 +15,7 @@ Esse projeto implementa um indexador de arquivos do tipo markdown.
 ## Instalação Linux
 
 ```
-sh -c "$(wget -O- https://raw.githubusercontent.com/senapk/th/master/tools/linux_install.sh)"
+sh -c "$(wget -O- https://raw.githubusercontent.com/senapk/indexer/master/tools/linux_install.sh)"
 ```
 
 ## Instalação
