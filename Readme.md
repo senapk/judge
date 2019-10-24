@@ -12,9 +12,16 @@ Esse projeto implementa um indexador de arquivos do tipo markdown.
     - Gerar links para fácil localização dos arquivos utilizando `Control P` da sua `ide`.
     - Gerar as thumbnails das para montar um Photo Board.
 
+## Instalação Linux
+
+```
+sh -c "$(wget -O- https://raw.githubusercontent.com/senapk/th/master/tools/linux_install.sh)"
+```
+
 ## Instalação
 
 Baixe o arquivo indexer.py para o path da sua distro onde ele possa ser encontrado.
+
 
 ## Arquivos MD
 Nos arquivos indexados, a primeira linha é utilizada para inserir os dados como categoria, tags, data, etc. Um caractere de marcação define cada informação. Os caracteres utilizados podem ser escolhidos no arquivo de configuração.
