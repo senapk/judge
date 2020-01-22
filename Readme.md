@@ -16,6 +16,8 @@ Esse projeto implementa um indexador de arquivos do tipo markdown.
 
 ```
 sh -c "$(wget -O- https://raw.githubusercontent.com/senapk/indexer/master/tools/linux_install.sh)"
+
+sudo apt install imagemagick
 ```
 
 ## Instalação
