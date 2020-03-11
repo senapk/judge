@@ -414,9 +414,14 @@ class Board:
         # Util.create_dirs_if_needed(board_file)
 
         output = io.StringIO()
+        pair_list: List[Tuple[str, str]] = []
         for item in sorted_list:
-            path, fulltitle = Board.make_entry(item, board_file)
-            output.write(path + " : " + fulltitle + "\n")
+            pair_list.append(Board.make_entry(item, board_file))
+
+        max_len_path = max ([len(x[0]) for x in pair_list])
+
+        for path, fulltitle in pair_list:
+            output.write(path.ljust(max_len_path) + " : " + fulltitle + "\n")
 
         return output.getvalue()
 
@@ -569,6 +574,7 @@ class VPL:
 def main():
     parser = argparse.ArgumentParser(prog='indexer.py')
     parser.add_argument('-b', action='store_true', help='rebuild headers using board')
+    parser.add_argument('-c', action='store', help='choose another config file')
     parser.add_argument('-r', action='store_true', help='rebuild all')
     # parser.add_argument('--init', action='store_true', help='init default .config.ini')
     args = parser.parse_args()
@@ -580,12 +586,16 @@ def main():
     #        f.close()
     #        exit(0)
 
+    config_file = ".config.ini"
+    if args.c:
+        config_file = args.c
+
     def to_bool(x: str) -> bool:
         return bool(int(x))
 
     cfg = configparser.ConfigParser()
-    if os.path.isfile(".config.ini"):
-        cfg.read(".config.ini")
+    if os.path.isfile(config_file):
+        cfg.read(config_file)
     else:
         print("  fail: config file not found")
         exit(1)
