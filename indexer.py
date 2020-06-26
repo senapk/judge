@@ -381,7 +381,7 @@ class Board:
     def extract_path_and_fulltitle(line: str, board_path: str):
         parts = line.split(":")
         file_path = parts[0].strip()[3:-1]  # removing []( )
-        fulltitle = parts[1].strip()
+        fulltitle = ":".join(parts[1:]).strip()
 
         # change path relative to board to a path relative to base
         board_dir = Util.split_path(board_path)[0]
@@ -418,7 +418,7 @@ class Board:
         for item in sorted_list:
             pair_list.append(Board.make_entry(item, board_file))
 
-        max_len_path = max ([len(x[0]) for x in pair_list])
+        max_len_path = max([len(x[0]) for x in pair_list])
 
         for path, fulltitle in pair_list:
             output.write(path.ljust(max_len_path) + " : " + fulltitle + "\n")
@@ -428,13 +428,13 @@ class Board:
 
 class IndexConfig:
     def __init__(self, cfg_index):
-        self.path        =           cfg_index["path"]
-        self.sort_by      =          cfg_index["sort_by"]
-        self.group_by     =          cfg_index["group_by"]
-        self.insert_toc   = bool(int(cfg_index["insert_toc"]))
-        self.insert_hook  = bool(int(cfg_index["insert_hook"]))
+        self.path = cfg_index["path"]
+        self.sort_by = cfg_index["sort_by"]
+        self.group_by = cfg_index["group_by"]
+        self.insert_toc = bool(int(cfg_index["insert_toc"]))
+        self.insert_hook = bool(int(cfg_index["insert_hook"]))
         self.reverse_sort = bool(int(cfg_index["reverse_sort"]))
-        self.key_filter   = bool(int(cfg_index["key_filter"]))
+        self.key_filter = bool(int(cfg_index["key_filter"]))
 
 
 class Index:
@@ -454,14 +454,23 @@ class Index:
                 link = Util.get_md_link(key)
                 output.write("- [" + key + "](#" + link + ")\n")
 
+
         for key, item_list in groups:
             key = Util.key_filter(key) if param.key_filter else key
             output.write("\n## " + key + "\n\n")
-            for item in item_list:
+
+            def calc_entry(item: Item) -> str:
                 item_path = item.path_full + "#" + Util.get_md_link(item.fulltitle)
                 prefix = ("@" + item.hook + " ") if param.insert_hook else ""
-                entry = "- [" + prefix + item.title.strip() + "](" + Util.get_directions(param.path, item_path) + ")\n"
-                output.write(entry)
+                entry = "- [" + prefix + item.title.strip() + "](" + Util.get_directions(param.path, item_path) + ")"
+                return entry
+
+            
+            for item in item_list:
+                entry = calc_entry(item)
+                if item.subtitle != Defaults.EMPTY:
+                    entry += " [" + item.subtitle + "]"
+                output.write(entry + "\n")
         return output.getvalue()
 
 
@@ -478,12 +487,12 @@ class Links:
 
 
 class HTML:
-
     """
     generate a html page from infile
     if remote_server not null, all reference to images begining with __
     will be updates to full url
     """
+
     @staticmethod
     def _generate_html(title: str, content: str, enable_latex: bool) -> str:
         temp_dir = tempfile.TemporaryDirectory()
@@ -540,7 +549,7 @@ class HTML:
 class VPL:
     @staticmethod
     def _generate_cases(infiles: List[str], outfile):
-        cmd = ["th", "build", outfile]
+        cmd = ["tk", "build", '-f', outfile]
         for infile in infiles:
             if os.path.isfile(infile):
                 cmd.append(infile)
@@ -629,7 +638,7 @@ def main():
     with open(index_param.path, "w") as f:
         f.write(index)
 
-    itens = sorted(itens, key=lambda x: x.hook) # ordenando para os geradores
+    itens = sorted(itens, key=lambda x: x.hook)  # ordenando para os geradores
 
     if cfg["html"]["enabled"] == '1':
         param = cfg["html"]

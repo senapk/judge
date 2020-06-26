@@ -246,9 +246,21 @@ class BoardTest(unittest.TestCase):
         self.assertEqual(itens[1].fulltitle, "## e teste 7 #poo")
 
 
+class BoardTest2(unittest.TestCase):
+    def setUp(self) -> None:
+        self.itens = [Item("b/0/0.md", "## a teste 0 #fup sub: one"), Item("b/3/3.md", "## e teste 3 #poo"),
+                      Item("b/1/1.md", "## c teste 1 #poo sub: two")]
+
+    def test_create(self):
+        output = Board.generate(self.itens, "a.md", "fulltitle")
+        expected = "[](b/0/0.md) : ## a teste 0 #fup sub: one\n" + \
+                   "[](b/1/1.md) : ## c teste 1 #poo sub: two\n" + \
+                   "[](b/3/3.md) : ## e teste 3 #poo\n"
+        self.assertEqual(output, expected)
+
 class IndexTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.itens = [Item("b/0/0.md", "## a teste 0 #fup"), Item("b/3/3.md", "## e teste 3 #poo"),
+        self.itens = [Item("b/0/0.md", "## a teste 0 #fup sub: one"), Item("b/3/3.md", "## e teste 3 #poo"),
                       Item("b/1/1.md", "## c teste 1 #poo"), Item("b/4/4.md", "## b teste 4 #poo"),
                       Item("b/2/2.md", "## d teste 2 #ed"), Item("b/5/5.md", "## f teste 5 #ed")]
 
@@ -277,7 +289,7 @@ class IndexTest(unittest.TestCase):
 
 ## fup
 
-- [@0 a teste 0](b/0/0.md#a-teste-0-fup)
+- [@0 a teste 0](b/0/0.md#a-teste-0-fup-sub-one) [one]
 
 ## poo
 
