@@ -1,0 +1,4 @@
+- [x] carregar os nomes dos arquivos da base
+- [x] carregar os títulos dos arquivos da base
+- [x] fazer o filtro do titulo
+- [ ] melhorando a legibilidade e modularidade do codigo
