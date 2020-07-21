@@ -695,10 +695,10 @@ class Manual:
                 f.write("\n".join(new_line_list))
 
     @staticmethod
-    def find_not_used_hooks(line_hook_header_readme, hook_header_base, base, hide):
+    def find_not_used_hooks(line_hook_header_readme, hook_header_base, base, hide, show):
         hooks_readme = [item[1] for item in line_hook_header_readme]
         missing_hook_header = [pair for pair in hook_header_base if pair[0] not in hooks_readme]
-        if len(missing_hook_header) > 0:
+        if show and len(missing_hook_header) > 0:
             print('Warning: There are hooks not used:')
             for hook, header in missing_hook_header:
                 print(Manual.refactor_line("", hook, header, base, hide))
@@ -712,21 +712,21 @@ class Manual:
                 print(line)
 
     @staticmethod
-    def indexer(hook_header_base, base, path, hide):
+    def indexer(hook_header_base, base, path, hide, show):
         line_list = Manual.load_lines(path)
         line_hook_header_readme = list(Manual.load_line_hook_header_from_readme(line_list, hook_header_base))
         new_line_list = Manual.generate_new_list(line_hook_header_readme, base, hide)
         Manual.update_readme(line_list, new_line_list, path)
-        Manual.find_not_used_hooks(line_hook_header_readme, hook_header_base, base, hide)
+        Manual.find_not_used_hooks(line_hook_header_readme, hook_header_base, base, hide, show)
         Manual.find_not_found_hooks(line_hook_header_readme)
 
 
 
 class Actions:
     @staticmethod
-    def manual(base: str, file: str, hide_key: bool):
+    def manual(base: str, file: str, hide_key: bool, show: bool):
         hook_header_base = Base.load_hook_header_from_base(base)
-        Manual.indexer(hook_header_base, base, file, hide_key)
+        Manual.indexer(hook_header_base, base, file, hide_key, show)
 
     @staticmethod
     def auto(base: str, path, sort_by, group_by, toc, hook, reverse, filter):
@@ -755,6 +755,7 @@ class Actions:
 
     @staticmethod
     def links(base, path):
+        print("Generating links")
         itens = ItemRepository(base).load()
         Links.generate(itens, path)
 
@@ -763,7 +764,7 @@ class Actions:
 class Main:
     @staticmethod
     def manual(args):
-        Actions.manual(args.base, args.path, args.key)
+        Actions.manual(args.base, args.path, args.key, args.show)
 
     @staticmethod
     def auto(args):
@@ -791,18 +792,20 @@ class Main:
         parser = argparse.ArgumentParser(prog='indexer')
         subparsers = parser.add_subparsers(title='sub commands', help='help for sub commands.')
 
-        parser_m = subparsers.add_parser('manual', parents=[parent_base], help='manual sort of the file.')
-        parser_m.add_argument('--path', '-p', type=str, default='Readme.md', help="source file do load and rewrite")
+        parser_m = subparsers.add_parser('manual', parents=[parent_base], help='create manual sorted index.')
+        parser_m.add_argument('path', type=str, help="source file do load and rewrite")
         parser_m.add_argument('--key', '-k', action='store_true', help="disable index key")
+        parser_m.add_argument('--show', '-s', action='store_true', help="show missing indexes")
         parser_m.set_defaults(func=Main.manual)
 
-        parser_a = subparsers.add_parser('auto', parents=[parent_base], help='auto sort the file.')
-        parser_a.add_argument('--path', '-p', type=str, default='Readme.md', help="source file do load and rewrite")
+        parser_a = subparsers.add_parser('auto', parents=[parent_base], help='create auto sorted index.')
+        parser_a.add_argument('path', type=str, help="source file do load and rewrite")
         parser_a.add_argument('--group_by', '-g', type=str, default='tag', help="group by: fulltitle, tille, tag, cat. Default: tag")
         parser_a.add_argument('--sort_by', '-s', type=str, default='title', help="sort by: fulltitle, tille, tag, cat. Default: title")
         parser_a.add_argument('--toc', '-t', action='store_true', help="insert toc")
         parser_a.add_argument('--index', '-i', action='store_true', help="insert hook")
         parser_a.add_argument('--filter', '-f', action='store_true', help="filter key")
+        parser_a.add_argument('--order', '-o', type=str, help="tag sequence to use")
         parser_a.add_argument('--reverse', '-r', action='store_true', help="reverse sort")
         parser_a.set_defaults(func=Main.auto)
 
@@ -811,6 +814,7 @@ class Main:
         parser_b.add_argument('--sort_by', type=str, default='title',
                               help="sort by: fulltitle, tille, tag, cat. Default: title")
         parser_b.add_argument('--set', '-s', action='store_true', help="set board instead get")
+        parser_b.add_argument('--reverse', '-r', action='store_true', help="reverse sort")
         parser_b.set_defaults(func=Main.board)
 
 
