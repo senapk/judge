@@ -1,18 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-
-import platform
-import sys
-from enum import Enum
-from typing import List, Tuple, Any, Optional
+from typing import List, Tuple,  Optional
 import os
-import re
-import shutil
-import argparse
 import subprocess
-import tempfile
-import io
+
 from subprocess import PIPE
 
 
@@ -34,7 +26,7 @@ class Util:
         try:
             _index = int(words[0])
             del words[0]
-        except:
+        except ValueError as _e:
             pass
         return " ".join(words).strip()
 
@@ -45,7 +37,7 @@ class Util:
         destination = os.path.normcase(destination)
         source_list = source.split(os.sep)
         destin_list = destination.split(os.sep)
-        while source_list[0] == destin_list[0]:  # erasing commom path
+        while source_list[0] == destin_list[0]:
             del source_list[0]
             del destin_list[0]
 
@@ -70,7 +62,7 @@ class Util:
 
     # generate md link for the text
     @staticmethod
-    def get_md_link(title: Union[None, str]) -> str:
+    def get_md_link(title: Optional[str]) -> str:
         if title is None:
             return ""
         title = title.lstrip(" #").rstrip()
@@ -103,13 +95,14 @@ class Util:
 
 class Runner:
     @staticmethod
-    def simple_run(cmd_list: List[str], input_data: str = "") -> Tuple[int, Any, Any]:
+    def simple_run(cmd_list: List[str], input_data: str = "") -> str:
         p = subprocess.Popen(cmd_list, stdout=PIPE, stdin=PIPE, stderr=PIPE, universal_newlines=True)
         stdout, stderr = p.communicate(input=input_data)
         if p.returncode != 0:
             print(stderr)
             exit(1)
         return stdout
+
 
 class Base:
     @staticmethod
@@ -123,11 +116,12 @@ class Base:
         return headers.split("\n")
 
     @staticmethod
+    def extract_hook_from_path(path: str, base: str):
+        return path[len(base) + 1:-10]  # remove base and Readme.md
+
+    @staticmethod
     def load_hook_header_from_base(base) -> List[Tuple[str, str]]:
         file_list = Base.find_files(base)
         header_list = Base.load_headers(file_list)
-        hook_list = [item[len(base) + 1:-10] for item in file_list]  # remove base and Readme.md
+        hook_list = [Base.extract_hook_from_path(item, base) for item in file_list]  # remove base and Readme.md
         return list(zip(hook_list, header_list))
-
-if __name__ == '__main__':
-    Main.main()

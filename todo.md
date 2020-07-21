@@ -1,4 +1,10 @@
-- [x] carregar os nomes dos arquivos da base
-- [x] carregar os títulos dos arquivos da base
-- [x] fazer o filtro do titulo
-- [ ] melhorando a legibilidade e modularidade do codigo
+- manual está separado, mas usando funcionalidades do util apenas
+- melhor transformar tudo em comandos e deixar junto
+- indexer   
+    - auto: para gerar os índices automaticamente
+    - manual: para gerar os índices manualmente
+    - links: para gerar os links
+    - board: para dar get ou set no board
+    - html: gerar os htmls dentro das pastas em em uma pasta nova
+    - vpls: gerar os vpls dentro das pastas ou em uma pasta nova
+    - remove category and symbols archieve

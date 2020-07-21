@@ -8,7 +8,7 @@ import argparse
 import tempfile
 import subprocess
 from shutil import rmtree
-from typing import Dict, List, Tuple, Union  # , Any, Callable
+from typing import Dict, List, Tuple, Union, Optional  # , Any, Callable
 import configparser
 from subprocess import run, PIPE
 
@@ -427,14 +427,14 @@ class Board:
 
 
 class IndexConfig:
-    def __init__(self, cfg_index):
-        self.path = cfg_index["path"]
-        self.sort_by = cfg_index["sort_by"]
-        self.group_by = cfg_index["group_by"]
-        self.insert_toc = bool(int(cfg_index["insert_toc"]))
-        self.insert_hook = bool(int(cfg_index["insert_hook"]))
-        self.reverse_sort = bool(int(cfg_index["reverse_sort"]))
-        self.key_filter = bool(int(cfg_index["key_filter"]))
+    def __init__(self, path, sort_by, group_by, toc, hook, reverse, key_filter):
+        self.path = path
+        self.sort_by = sort_by
+        self.group_by = group_by
+        self.insert_toc = toc
+        self.insert_hook = hook
+        self.reverse_sort = reverse
+        self.key_filter = key_filter
 
 
 class Index:
@@ -580,75 +580,309 @@ class VPL:
                 VPL._generate_cases(input_files, output_file)
 
 
-def main():
-    parser = argparse.ArgumentParser(prog='indexer.py')
-    parser.add_argument('-b', action='store_true', help='rebuild headers using board')
-    parser.add_argument('-c', action='store', help='choose another config file')
-    parser.add_argument('-r', action='store_true', help='rebuild all')
-    # parser.add_argument('--init', action='store_true', help='init default .config.ini')
-    args = parser.parse_args()
+class Runner:
+    @staticmethod
+    def simple_run(cmd_list: List[str], input_data: str = "") -> str:
+        p = subprocess.Popen(cmd_list, stdout=PIPE, stdin=PIPE, stderr=PIPE, universal_newlines=True)
+        stdout, stderr = p.communicate(input=input_data)
+        if p.returncode != 0:
+            print(stderr)
+            exit(1)
+        return stdout
 
-    #    if args.init:
-    #        f = open(".indexer.json", "w")
-    #        print("Creating .indexer.json file")
-    #        f.write(json.dumps(Config.getDefault(), indent=2))
-    #        f.close()
-    #        exit(0)
 
-    config_file = ".config.ini"
-    if args.c:
-        config_file = args.c
+class Base:
+    @staticmethod
+    def find_files(base: str) -> List[str]:
+        file_text = Runner.simple_run(["find", base, "-name", "Readme.md"])
+        return [line for line in file_text.split("\n") if line != ""]
 
-    def to_bool(x: str) -> bool:
-        return bool(int(x))
+    @staticmethod
+    def load_headers(file_list: List[str]) -> List[str]:
+        headers = Runner.simple_run(["xargs", "-n", "1", "head", "-n", "1"], "\n".join(file_list))
+        return headers.split("\n")
 
-    cfg = configparser.ConfigParser()
-    if os.path.isfile(config_file):
-        cfg.read(config_file)
-    else:
-        print("  fail: config file not found")
-        exit(1)
+    @staticmethod
+    def extract_hook_from_path(path: str, base: str):
+        return path[len(base) + 1:-10]  # remove base and Readme.md
 
-    base_path = cfg["base"]["dir"]
+    @staticmethod
+    def load_hook_header_from_base(base) -> List[Tuple[str, str]]:
+        file_list = Base.find_files(base)
+        header_list = Base.load_headers(file_list)
+        hook_list = [Base.extract_hook_from_path(item, base) for item in file_list]  # remove base and Readme.md
+        return list(zip(hook_list, header_list))
 
-    itens = ItemRepository(base_path).load()
 
-    if cfg["board"]["enabled"] == '1':
-        param = cfg["board"]
-        if args.b:
+class Manual:
+    @staticmethod
+    def load_lines(path) -> List[str]:
+        if os.path.isfile(path):
+            with open(path) as f:
+                return f.read().split("\n")
+        return []
+
+    @staticmethod
+    def search_hook(line: str) -> Optional[str]:
+        parts = line.split("@")
+        if len(parts) == 1:
+            return None
+        return parts[1].split("]")[0].split(" ")[0].split(")")[0]  # extracting token
+
+    @staticmethod
+    def calc_prefix(line: str):
+        cont = 0
+        for c in line:
+            if c == ' ':
+                cont += 1
+            else:
+                break
+        return cont
+
+    @staticmethod
+    def refactor_line(line: str, hook: str, header: str, base: str, hide: bool):
+        prefix = Manual.calc_prefix(line)
+        words = header.split(" ")
+        tags = [word for word in words if word.startswith("#") and len(word) != word.count('#')]
+        title = " ".join([word for word in words if not word.startswith("#")])
+        line = ' ' * prefix + '- ['
+        if not hide:
+            line += '@' + hook + ' '
+        line += title
+        line += '](' + Util.join([base, hook, 'Readme.md']) + '#' + Util.get_md_link(header) + ') '
+
+        extra = []
+        if hide:
+            extra.append('@' + hook)
+        if len(tags) > 0:
+            extra += tags
+        if len(extra) > 0:
+            line += " [](" + " ".join(extra) + ")"
+        return line
+
+    @staticmethod
+    def find_header(hook_header_list: List[Tuple[Optional[str], Optional[str]]], hook: Optional[str]) -> Optional[str]:
+        header = []
+        if hook:
+            header = [header for _hook, header in hook_header_list if _hook == hook]
+        if len(header) == 0:
+            return None
+        else:
+            return header[0]
+
+    @staticmethod
+    def load_line_hook_header_from_readme(line_list: List[str],
+                                          hook_header_base: List[Tuple[Optional[str], Optional[str]]]) -> \
+            List[Tuple[str, Optional[str], Optional[str]]]:
+        hook_list = [Manual.search_hook(line) for line in line_list]
+        header_list = [Manual.find_header(hook_header_base, hook) for hook in hook_list]
+        return list(zip(line_list, hook_list, header_list))
+
+    @staticmethod
+    def generate_new_list(line_hook_header_readme, base, hide) -> List[str]:
+        new_line_list = []
+        for line, hook, header in line_hook_header_readme:
+            if hook is None or header is None:
+                new_line_list.append(line)
+            else:
+                new_line_list.append(Manual.refactor_line(line, hook, header, base, hide))
+        return new_line_list
+
+    @staticmethod
+    def update_readme(line_list, new_line_list, path):
+        if line_list != new_line_list:
+            print("Updating", path)
+            with open(path, "w") as f:
+                f.write("\n".join(new_line_list))
+
+    @staticmethod
+    def find_not_used_hooks(line_hook_header_readme, hook_header_base, base, hide):
+        hooks_readme = [item[1] for item in line_hook_header_readme]
+        missing_hook_header = [pair for pair in hook_header_base if pair[0] not in hooks_readme]
+        if len(missing_hook_header) > 0:
+            print('Warning: There are hooks not used:')
+            for hook, header in missing_hook_header:
+                print(Manual.refactor_line("", hook, header, base, hide))
+
+    @staticmethod
+    def find_not_found_hooks(line_hook_header_readme):
+        line_list = [line for line, hook, _header in line_hook_header_readme if hook is not None and _header is None]
+        if len(line_list) > 0:
+            print("Warning: There are hooks not found:")
+            for line in line_list:
+                print(line)
+
+    @staticmethod
+    def indexer(hook_header_base, base, path, hide):
+        line_list = Manual.load_lines(path)
+        line_hook_header_readme = list(Manual.load_line_hook_header_from_readme(line_list, hook_header_base))
+        new_line_list = Manual.generate_new_list(line_hook_header_readme, base, hide)
+        Manual.update_readme(line_list, new_line_list, path)
+        Manual.find_not_used_hooks(line_hook_header_readme, hook_header_base, base, hide)
+        Manual.find_not_found_hooks(line_hook_header_readme)
+
+
+
+class Actions:
+    @staticmethod
+    def manual(base: str, file: str, hide_key: bool):
+        hook_header_base = Base.load_hook_header_from_base(base)
+        Manual.indexer(hook_header_base, base, file, hide_key)
+
+    @staticmethod
+    def auto(base: str, path, sort_by, group_by, toc, hook, reverse, filter):
+        itens = ItemRepository(base).load()
+        print("Generating index")
+        index_param = IndexConfig(path, sort_by, group_by, toc, hook, reverse, filter)
+        index = Index.generate(itens, index_param)
+        with open(index_param.path, "w") as f:
+            f.write(index)
+
+    @staticmethod
+    def board(base, path, set_mode, sort_by, reverse_sort):
+        itens = ItemRepository(base).load()
+
+        if set_mode:
             print("Updating names using board")
-            with open(param["path"]) as f:
-                marked = Board.check_itens_for_update(f.read(), param["path"], itens)
+            with open(path) as f:
+                marked = Board.check_itens_for_update(f.read(), path, itens)
                 Board.update_itens(marked)
-            itens = ItemRepository(base_path).load()
+            itens = ItemRepository(base).load()
 
         print("Generating board")
-        board = Board.generate(itens, param["path"], param["sort_by"], to_bool(param["reverse_sort"]))
-        with open(param["path"], "w") as f:
+        board = Board.generate(itens, path, sort_by, reverse_sort)
+        with open(path, "w") as f:
             f.write(board)
 
-    if cfg["links"]["enabled"] == '1':
-        param = cfg["links"]
-        print("Generating links")
-        Links.generate(itens, param["dir"])
+    @staticmethod
+    def links(base, path):
+        itens = ItemRepository(base).load()
+        Links.generate(itens, path)
 
-    print("Generating index")
-    index_param = IndexConfig(cfg["index"])
-    index = Index.generate(itens, index_param)
-    with open(index_param.path, "w") as f:
-        f.write(index)
 
-    itens = sorted(itens, key=lambda x: x.hook)  # ordenando para os geradores
 
-    if cfg["html"]["enabled"] == '1':
-        param = cfg["html"]
-        print("Generating htmls")
-        HTML.generate(itens, to_bool(param["insert_hook"]), to_bool(param["latex"]), param["remote"], args.r)
+class Main:
+    @staticmethod
+    def manual(args):
+        Actions.manual(args.base, args.path, args.key)
 
-    if cfg["vpl"]["enabled"] == '1':
-        print("Generating vpls")
-        VPL.generate(itens, args.r)
+    @staticmethod
+    def auto(args):
+        Actions.auto(args.base, args.path, args.sort_by, args.group_by, args.toc, args.index, args.reverse, args.filter)
+
+    @staticmethod
+    def board(args):
+        Actions.board(args.base, args.path, args.set, args.sort_by, args.reverse)
+
+    @staticmethod
+    def links(args):
+        Actions.links(args.base, args.path)
+
+    @staticmethod
+    def main():
+        parent_base = argparse.ArgumentParser(add_help=False)
+        parent_base.add_argument('--base', '-b', type=str, default="base", help="path to dir with the questions")
+
+        #parser = argparse.ArgumentParser(prog='indexer.py')
+        #parser.add_argument('-b', action='store_true', help='rebuild headers using board')
+        #parser.add_argument('-c', action='store', help='choose another config file')
+        #parser.add_argument('-r', action='store_true', help='rebuild all')
+        # parser.add_argument('--init', action='store_true', help='init default .config.ini')
+
+        parser = argparse.ArgumentParser(prog='indexer')
+        subparsers = parser.add_subparsers(title='sub commands', help='help for sub commands.')
+
+        parser_m = subparsers.add_parser('manual', parents=[parent_base], help='manual sort of the file.')
+        parser_m.add_argument('--path', '-p', type=str, default='Readme.md', help="source file do load and rewrite")
+        parser_m.add_argument('--key', '-k', action='store_true', help="disable index key")
+        parser_m.set_defaults(func=Main.manual)
+
+        parser_a = subparsers.add_parser('auto', parents=[parent_base], help='auto sort the file.')
+        parser_a.add_argument('--path', '-p', type=str, default='Readme.md', help="source file do load and rewrite")
+        parser_a.add_argument('--group_by', '-g', type=str, default='tag', help="group by: fulltitle, tille, tag, cat. Default: tag")
+        parser_a.add_argument('--sort_by', '-s', type=str, default='title', help="sort by: fulltitle, tille, tag, cat. Default: title")
+        parser_a.add_argument('--toc', '-t', action='store_true', help="insert toc")
+        parser_a.add_argument('--index', '-i', action='store_true', help="insert hook")
+        parser_a.add_argument('--filter', '-f', action='store_true', help="filter key")
+        parser_a.add_argument('--reverse', '-r', action='store_true', help="reverse sort")
+        parser_a.set_defaults(func=Main.auto)
+
+        parser_b = subparsers.add_parser('board', parents=[parent_base], help='get or set the board.')
+        parser_b.add_argument('--path', '-p', type=str, default='board.md', help="source board file")
+        parser_b.add_argument('--sort_by', type=str, default='title',
+                              help="sort by: fulltitle, tille, tag, cat. Default: title")
+        parser_b.add_argument('--set', '-s', action='store_true', help="set board instead get")
+        parser_b.set_defaults(func=Main.board)
+
+
+        parser_l = subparsers.add_parser('links', parents=[parent_base], help='generate links for questions.')
+        parser_l.add_argument('--path', '-p', type=str, default='.links', help="links dir")
+        parser_l.set_defaults(func=Main.links)
+
+        args = parser.parse_args()
+
+
+        #    if args.init:
+        #        f = open(".indexer.json", "w")
+        #        print("Creating .indexer.json file")
+        #        f.write(json.dumps(Config.getDefault(), indent=2))
+        #        f.close()
+        #        exit(0)
+
+        config_file = ".config.ini"
+        if args.c:
+            config_file = args.c
+
+        def to_bool(x: str) -> bool:
+            return bool(int(x))
+
+        cfg = configparser.ConfigParser()
+        if os.path.isfile(config_file):
+            cfg.read(config_file)
+        else:
+            print("  fail: config file not found")
+            exit(1)
+
+        base_path = cfg["base"]["dir"]
+
+        itens = ItemRepository(base_path).load()
+
+        if cfg["board"]["enabled"] == '1':
+            param = cfg["board"]
+            if args.b:
+                print("Updating names using board")
+                with open(param["path"]) as f:
+                    marked = Board.check_itens_for_update(f.read(), param["path"], itens)
+                    Board.update_itens(marked)
+                itens = ItemRepository(base_path).load()
+
+            print("Generating board")
+            board = Board.generate(itens, param["path"], param["sort_by"], to_bool(param["reverse_sort"]))
+            with open(param["path"], "w") as f:
+                f.write(board)
+
+        if cfg["links"]["enabled"] == '1':
+            param = cfg["links"]
+            print("Generating links")
+            Links.generate(itens, param["dir"])
+
+        print("Generating index")
+        index_param = IndexConfig(cfg["index"])
+        index = Index.generate(itens, index_param)
+        with open(index_param.path, "w") as f:
+            f.write(index)
+
+        itens = sorted(itens, key=lambda x: x.hook)  # ordenando para os geradores
+
+        if cfg["html"]["enabled"] == '1':
+            param = cfg["html"]
+            print("Generating htmls")
+            HTML.generate(itens, to_bool(param["insert_hook"]), to_bool(param["latex"]), param["remote"], args.r)
+
+        if cfg["vpl"]["enabled"] == '1':
+            print("Generating vpls")
+            VPL.generate(itens, args.r)
 
 
 if __name__ == '__main__':
-    main()
+    Main.main()
