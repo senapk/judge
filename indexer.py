@@ -3,6 +3,7 @@
 
 import os
 import re
+import sys
 import io
 import argparse
 import tempfile
@@ -10,7 +11,7 @@ import subprocess
 from shutil import rmtree
 from typing import Dict, List, Tuple, Union, Optional  # , Any, Callable
 import configparser
-from subprocess import run, PIPE
+from subprocess import PIPE
 
 
 class Defaults:
@@ -42,7 +43,7 @@ class Util:
         try:
             _index = int(words[0])
             del words[0]
-        except:
+        except ValueError:
             pass
         return " ".join(words).strip()
 
@@ -454,7 +455,6 @@ class Index:
                 link = Util.get_md_link(key)
                 output.write("- [" + key + "](#" + link + ")\n")
 
-
         for key, item_list in groups:
             key = Util.key_filter(key) if param.key_filter else key
             output.write("\n## " + key + "\n\n")
@@ -465,7 +465,6 @@ class Index:
                 entry = "- [" + prefix + item.title.strip() + "](" + Util.get_directions(param.path, item_path) + ")"
                 return entry
 
-            
             for item in item_list:
                 entry = calc_entry(item)
                 if item.subtitle != Defaults.EMPTY:
@@ -821,6 +820,13 @@ class Main:
 
         args = parser.parse_args()
 
+        if len(sys.argv) == 1:
+            print("choose one subcommand")
+        else:
+            try:
+                args.func(args)
+            except ValueError as e:
+                print(str(e) + '\n')
 
         #    if args.init:
         #        f = open(".indexer.json", "w")
@@ -829,60 +835,17 @@ class Main:
         #        f.close()
         #        exit(0)
 
-        config_file = ".config.ini"
-        if args.c:
-            config_file = args.c
 
-        def to_bool(x: str) -> bool:
-            return bool(int(x))
+        #if cfg["html"]["enabled"] == '1':
+        #    param = cfg["html"]
+        #    print("Generating htmls")
+        #    HTML.generate(itens, to_bool(param["insert_hook"]), to_bool(param["latex"]), param["remote"], args.r)
 
-        cfg = configparser.ConfigParser()
-        if os.path.isfile(config_file):
-            cfg.read(config_file)
-        else:
-            print("  fail: config file not found")
-            exit(1)
-
-        base_path = cfg["base"]["dir"]
-
-        itens = ItemRepository(base_path).load()
-
-        if cfg["board"]["enabled"] == '1':
-            param = cfg["board"]
-            if args.b:
-                print("Updating names using board")
-                with open(param["path"]) as f:
-                    marked = Board.check_itens_for_update(f.read(), param["path"], itens)
-                    Board.update_itens(marked)
-                itens = ItemRepository(base_path).load()
-
-            print("Generating board")
-            board = Board.generate(itens, param["path"], param["sort_by"], to_bool(param["reverse_sort"]))
-            with open(param["path"], "w") as f:
-                f.write(board)
-
-        if cfg["links"]["enabled"] == '1':
-            param = cfg["links"]
-            print("Generating links")
-            Links.generate(itens, param["dir"])
-
-        print("Generating index")
-        index_param = IndexConfig(cfg["index"])
-        index = Index.generate(itens, index_param)
-        with open(index_param.path, "w") as f:
-            f.write(index)
-
-        itens = sorted(itens, key=lambda x: x.hook)  # ordenando para os geradores
-
-        if cfg["html"]["enabled"] == '1':
-            param = cfg["html"]
-            print("Generating htmls")
-            HTML.generate(itens, to_bool(param["insert_hook"]), to_bool(param["latex"]), param["remote"], args.r)
-
-        if cfg["vpl"]["enabled"] == '1':
-            print("Generating vpls")
-            VPL.generate(itens, args.r)
+        #if cfg["vpl"]["enabled"] == '1':
+        #    print("Generating vpls")
+        #    VPL.generate(itens, args.r)
 
 
 if __name__ == '__main__':
     Main.main()
+

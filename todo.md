@@ -8,3 +8,4 @@
     - html: gerar os htmls dentro das pastas em em uma pasta nova
     - vpls: gerar os vpls dentro das pastas ou em uma pasta nova
     - remove category and symbols archieve
+    - create update, vpl and html
