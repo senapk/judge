@@ -1,4 +1,4 @@
-./indexer.py manual Readme.md
-./indexer.py auto auto.md --tik
+./indexer.py manual manual.md --show
+./indexer.py auto auto.md -tif
 ./indexer.py links
 ./indexer.py board

@@ -110,6 +110,82 @@ class Util:
         return inside_list, word_list
 
 
+class TOC:
+    tag_begin = r"<!--TOC_BEGIN-->"
+    tag_end = r"<!--TOC_END-->"
+    regex = tag_begin + r"(.*)" + tag_end
+
+    @staticmethod
+    def get_level(line: str) -> int:
+        return len(line.split(" ")[0])
+
+    @staticmethod
+    def get_content(line: str) -> str:
+        return " ".join(line.split(" ")[1:])
+
+    @staticmethod
+    def remove_code_blocks(content):
+        regex = r"^```.*?```\n"
+        return re.sub(regex, "", content, 0, re.MULTILINE | re.DOTALL)
+
+    @staticmethod
+    def search_old_toc(readme_content):
+        found = re.search(TOC.regex, readme_content, re.MULTILINE | re.DOTALL)
+        if found:
+            return True, found[1]
+        return False, ""
+
+
+    @staticmethod
+    def merge_toc(readme_content, toc):
+        subst = TOC.tag_begin + "\\n" + toc + "\\n" + TOC.tag_end
+        merged_content = re.sub(TOC.regex, subst, readme_content, 0, re.MULTILINE | re.DOTALL)
+        return merged_content
+
+    @staticmethod
+    def make_toc(file_content):
+        content = TOC.remove_code_blocks(file_content)
+
+        lines = content.split("\n")
+        disable_tag = "[]()"
+        lines = [line for line in lines if Util.only_hashtags(line.split(" ")[0]) and line.find(disable_tag) == -1]
+
+        min_level = 1
+        toc_lines = []
+        for line in lines:
+            level = (TOC.get_level(line) - 1) - min_level
+            if level < 0:
+                continue
+            text = "    " * level + "- [" + TOC.get_content(line) + "](#" + Util.get_md_link(line) + ")"
+            toc_lines.append(text)
+        toc_text = "\n".join(toc_lines) + "\n"
+        return toc_text
+
+    @staticmethod
+    def add_toc(path):
+        if os.path.isfile(path):
+            with open(path) as f:
+                file_content = f.read()
+        else:
+            print("Warning: File", path, "not found")
+            return()
+
+        toc_text = TOC.make_toc(file_content)
+        found, _text = TOC.search_old_toc(file_content)
+        if found:
+            merged_content = TOC.merge_toc(file_content, toc_text)
+            if file_content != merged_content:
+                print("Toc updated in", path)
+                with open(path, "w") as f:
+                    f.write(merged_content)
+        else:
+            print("Create an entry with the text:")
+            print(TOC.tag_begin)
+            print(TOC.tag_end)
+            print("in your file.")
+            print("Use '[]()' string in the lines that you want to hide in toc")
+
+
 class Config:
     @staticmethod
     def get_default_cfg():
@@ -443,7 +519,7 @@ class Index:
     # bool: generate_indices
     # bool: parse key to 01_Titulo_Coisado -> Titulo Coisado
     # bool: add hook
-    def generate(itens: List[Item], param: IndexConfig) -> str:
+    def generate(itens: List[Item], param: IndexConfig, order: str) -> str:
         groups = Sorter.group_by(itens, param.group_by, param.sort_by, param.reverse_sort)
         output = io.StringIO()
         output.write("\n## Links\n")
@@ -619,6 +695,10 @@ class Manual:
         if os.path.isfile(path):
             with open(path) as f:
                 return f.read().split("\n")
+        else:
+            with open(path, "w"):
+                pass
+        print("Warning: File", path, "not found, creating empty file")
         return []
 
     @staticmethod
@@ -699,7 +779,7 @@ class Manual:
         hooks_readme = [item[1] for item in line_hook_header_readme]
         missing_hook_header = [pair for pair in hook_header_base if pair[0] not in hooks_readme]
         if show and len(missing_hook_header) > 0:
-            print('Warning: There are hooks not used:')
+            print('Warning: There are entries not used:')
             for hook, header in missing_hook_header:
                 print(Manual.refactor_line("", hook, header, base, hide))
 
@@ -707,7 +787,7 @@ class Manual:
     def find_not_found_hooks(line_hook_header_readme):
         line_list = [line for line, hook, _header in line_hook_header_readme if hook is not None and _header is None]
         if len(line_list) > 0:
-            print("Warning: There are hooks not found:")
+            print("Warning: There are entries not found:")
             for line in line_list:
                 print(line)
 
@@ -722,18 +802,21 @@ class Manual:
 
 
 
+
+
 class Actions:
     @staticmethod
     def manual(base: str, file: str, hide_key: bool, show: bool):
         hook_header_base = Base.load_hook_header_from_base(base)
         Manual.indexer(hook_header_base, base, file, hide_key, show)
+        TOC.add_toc(file)
 
     @staticmethod
-    def auto(base: str, path, sort_by, group_by, toc, hook, reverse, filter):
+    def auto(base: str, path, sort_by, group_by, toc, hook, reverse, filter, order):
         itens = ItemRepository(base).load()
         print("Generating index")
         index_param = IndexConfig(path, sort_by, group_by, toc, hook, reverse, filter)
-        index = Index.generate(itens, index_param)
+        index = Index.generate(itens, index_param, order)
         with open(index_param.path, "w") as f:
             f.write(index)
 
@@ -768,7 +851,7 @@ class Main:
 
     @staticmethod
     def auto(args):
-        Actions.auto(args.base, args.path, args.sort_by, args.group_by, args.toc, args.index, args.reverse, args.filter)
+        Actions.auto(args.base, args.path, args.sort_by, args.group_by, args.toc, args.index, args.reverse, args.filter, args.order)
 
     @staticmethod
     def board(args):
@@ -782,12 +865,6 @@ class Main:
     def main():
         parent_base = argparse.ArgumentParser(add_help=False)
         parent_base.add_argument('--base', '-b', type=str, default="base", help="path to dir with the questions")
-
-        #parser = argparse.ArgumentParser(prog='indexer.py')
-        #parser.add_argument('-b', action='store_true', help='rebuild headers using board')
-        #parser.add_argument('-c', action='store', help='choose another config file')
-        #parser.add_argument('-r', action='store_true', help='rebuild all')
-        # parser.add_argument('--init', action='store_true', help='init default .config.ini')
 
         parser = argparse.ArgumentParser(prog='indexer')
         subparsers = parser.add_subparsers(title='sub commands', help='help for sub commands.')
