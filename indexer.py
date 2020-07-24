@@ -600,14 +600,17 @@ class HTML:
         return result
 
     @staticmethod
-    def generate(itens: List[Item], insert_hook: bool, enable_latex: bool, remote_base_url: str, rebuild_all: bool):
+    #  remote_master is something like https://raw.githubusercontent.com/qxcodefup/arcade/master
+    def generate(base: str, itens: List[Item], insert_hook: bool, enable_latex: bool, remote_master_url: str, rebuild_all: bool):
         for item in itens:
             hook = ("@" + item.hook) if insert_hook else ""
 
             payload = item.payload
-            if remote_base_url != "":
-                remote_hook = remote_base_url.rstrip("/") + "/" + item.hook + "/"
+            if remote_master_url != "":
+                remote_hook = remote_master_url.rstrip("/") + "/" + base + "/" + item.hook + "/"
                 payload = HTML._insert_remote_url(payload, remote_hook)
+                if item.hook == "001":
+                    print(payload)
 
             md_content = "## " + hook + "\n" + item.fulltitle + "\n" + payload
             title = " ".join([hook, item.title])
@@ -801,9 +804,6 @@ class Manual:
         Manual.find_not_found_hooks(line_hook_header_readme)
 
 
-
-
-
 class Actions:
     @staticmethod
     def manual(base: str, file: str, hide_key: bool, show: bool):
@@ -842,6 +842,18 @@ class Actions:
         itens = ItemRepository(base).load()
         Links.generate(itens, path)
 
+    @staticmethod
+    def html(base, remote, index, latex, rebuild):
+        print("Generating htmls")
+        itens = ItemRepository(base).load()
+        HTML.generate(base, itens, index, latex, remote, rebuild)
+
+    @staticmethod
+    def vpl(base, rebuild):
+        print("Generating vpl")
+        itens = ItemRepository(base).load()
+        VPL.generate(itens, rebuild)
+
 
 
 class Main:
@@ -862,6 +874,14 @@ class Main:
         Actions.links(args.base, args.path)
 
     @staticmethod
+    def html(args):
+        Actions.html(args.base, args.remote, args.index, args.latex, args.rebuild)
+
+    @staticmethod
+    def vpl(args):
+        Actions.vpl(args.base, args.rebuild)
+
+    @staticmethod
     def main():
         parent_base = argparse.ArgumentParser(add_help=False)
         parent_base.add_argument('--base', '-b', type=str, default="base", help="path to dir with the questions")
@@ -880,7 +900,7 @@ class Main:
         parser_a.add_argument('--group_by', '-g', type=str, default='tag', help="group by: fulltitle, tille, tag, cat. Default: tag")
         parser_a.add_argument('--sort_by', '-s', type=str, default='title', help="sort by: fulltitle, tille, tag, cat. Default: title")
         parser_a.add_argument('--toc', '-t', action='store_true', help="insert toc")
-        parser_a.add_argument('--index', '-i', action='store_true', help="insert hook")
+        parser_a.add_argument('--index', '-i', action='store_true', help="insert index")
         parser_a.add_argument('--filter', '-f', action='store_true', help="filter key")
         parser_a.add_argument('--order', '-o', type=str, help="tag sequence to use")
         parser_a.add_argument('--reverse', '-r', action='store_true', help="reverse sort")
@@ -898,6 +918,17 @@ class Main:
         parser_l = subparsers.add_parser('links', parents=[parent_base], help='generate links for questions.')
         parser_l.add_argument('--path', '-p', type=str, default='.links', help="links dir")
         parser_l.set_defaults(func=Main.links)
+
+        parser_h = subparsers.add_parser('html', parents=[parent_base], help='generate html for questions')
+        parser_h.add_argument('--remote', '-r', type=str, default="", help="root remote path")
+        parser_h.add_argument('--index', '-i', action='store_true', help="insert index in name")
+        parser_h.add_argument('--latex', '-l', action='store_true', help="enable latex rendering")
+        parser_h.add_argument('--rebuild', action='store_true', help="force rebuild all")
+        parser_h.set_defaults(func=Main.html)
+
+        parser_v = subparsers.add_parser('vpl', parents=[parent_base], help='generate vpl for questions')
+        parser_v.add_argument('--rebuild', action='store_true', help="force rebuild all")
+        parser_v.set_defaults(func=Main.vpl)
 
         args = parser.parse_args()
 
