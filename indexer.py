@@ -844,12 +844,14 @@ class Actions:
     def html(base, remote, index, latex, rebuild):
         print("Generating htmls")
         itens = ItemRepository(base).load()
+        itens = sorted(itens, key=lambda x: x.hook)
         HTML.generate(base, itens, index, latex, remote, rebuild)
 
     @staticmethod
     def vpl(base, rebuild):
         print("Generating vpl")
         itens = ItemRepository(base).load()
+        itens = sorted(itens, key=lambda x: x.hook)
         VPL.generate(itens, rebuild)
 
     @staticmethod
@@ -956,22 +958,7 @@ class Main:
             except ValueError as e:
                 print(str(e) + '\n')
 
-        #    if args.init:
-        #        f = open(".indexer.json", "w")
-        #        print("Creating .indexer.json file")
-        #        f.write(json.dumps(Config.getDefault(), indent=2))
-        #        f.close()
-        #        exit(0)
 
-
-        #if cfg["html"]["enabled"] == '1':
-        #    param = cfg["html"]
-        #    print("Generating htmls")
-        #    HTML.generate(itens, to_bool(param["insert_hook"]), to_bool(param["latex"]), param["remote"], args.r)
-
-        #if cfg["vpl"]["enabled"] == '1':
-        #    print("Generating vpls")
-        #    VPL.generate(itens, args.r)
 
 
 if __name__ == '__main__':
