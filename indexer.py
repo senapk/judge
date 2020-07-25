@@ -609,8 +609,6 @@ class HTML:
             if remote_master_url != "":
                 remote_hook = remote_master_url.rstrip("/") + "/" + base + "/" + item.hook + "/"
                 payload = HTML._insert_remote_url(payload, remote_hook)
-                if item.hook == "001":
-                    print(payload)
 
             md_content = "## " + hook + "\n" + item.fulltitle + "\n" + payload
             title = " ".join([hook, item.title])
@@ -854,16 +852,27 @@ class Actions:
         itens = ItemRepository(base).load()
         VPL.generate(itens, rebuild)
 
+    @staticmethod
+    def update():
+        tdir = tempfile.mkdtemp()
+        installer = os.path.join(tdir, "installer.sh")
+        cmd = ["wget", "https://raw.githubusercontent.com/senapk/indexer/master/install.sh", "-O", installer]
+        data = Runner.simple_run(cmd)
+        print(data)
+        cmd = ["sh", installer]
+        out = Runner.simple_run(cmd)
+        print(out)
+        return 0
 
 
 class Main:
     @staticmethod
     def manual(args):
-        Actions.manual(args.base, args.path, args.key, args.show)
+        Actions.manual(args.base, args.path, args.dindex, not args.dshow)
 
     @staticmethod
     def auto(args):
-        Actions.auto(args.base, args.path, args.sort_by, args.group_by, args.toc, args.index, args.reverse, args.filter, args.order)
+        Actions.auto(args.base, args.path, args.sort_by, args.group_by, not args.dtoc, not args.dindex, args.reverse, not args.dfilter, args.order)
 
     @staticmethod
     def board(args):
@@ -875,11 +884,15 @@ class Main:
 
     @staticmethod
     def html(args):
-        Actions.html(args.base, args.remote, args.index, args.latex, args.rebuild)
+        Actions.html(args.base, args.remote, not args.dindex, not args.dlatex, args.rebuild)
 
     @staticmethod
     def vpl(args):
         Actions.vpl(args.base, args.rebuild)
+
+    @staticmethod
+    def update(args):
+        Actions.update()
 
     @staticmethod
     def main():
@@ -891,19 +904,19 @@ class Main:
 
         parser_m = subparsers.add_parser('manual', parents=[parent_base], help='create manual sorted index.')
         parser_m.add_argument('path', type=str, help="source file do load and rewrite")
-        parser_m.add_argument('--key', '-k', action='store_true', help="disable index key")
-        parser_m.add_argument('--show', '-s', action='store_true', help="show missing indexes")
+        parser_m.add_argument('--dindex', action='store_true', help="disable index key")
+        parser_m.add_argument('--dshow', action='store_true', help="disable show missing indexes")
         parser_m.set_defaults(func=Main.manual)
 
         parser_a = subparsers.add_parser('auto', parents=[parent_base], help='create auto sorted index.')
         parser_a.add_argument('path', type=str, help="source file do load and rewrite")
         parser_a.add_argument('--group_by', '-g', type=str, default='tag', help="group by: fulltitle, tille, tag, cat. Default: tag")
         parser_a.add_argument('--sort_by', '-s', type=str, default='title', help="sort by: fulltitle, tille, tag, cat. Default: title")
-        parser_a.add_argument('--toc', '-t', action='store_true', help="insert toc")
-        parser_a.add_argument('--index', '-i', action='store_true', help="insert index")
-        parser_a.add_argument('--filter', '-f', action='store_true', help="filter key")
-        parser_a.add_argument('--order', '-o', type=str, help="tag sequence to use")
-        parser_a.add_argument('--reverse', '-r', action='store_true', help="reverse sort")
+        parser_a.add_argument('--dtoc', action='store_true', help="disable toc")
+        parser_a.add_argument('--dindex', action='store_true', help="disabe insert index")
+        parser_a.add_argument('--dfilter', action='store_true', help="disable filter key")
+        parser_a.add_argument('--order', type=str, help="tag sequence to use")
+        parser_a.add_argument('--reverse', action='store_true', help="reverse sort")
         parser_a.set_defaults(func=Main.auto)
 
         parser_b = subparsers.add_parser('board', parents=[parent_base], help='get or set the board.')
@@ -911,7 +924,7 @@ class Main:
         parser_b.add_argument('--sort_by', type=str, default='title',
                               help="sort by: fulltitle, tille, tag, cat. Default: title")
         parser_b.add_argument('--set', '-s', action='store_true', help="set board instead get")
-        parser_b.add_argument('--reverse', '-r', action='store_true', help="reverse sort")
+        parser_b.add_argument('--reverse', action='store_true', help="reverse sort")
         parser_b.set_defaults(func=Main.board)
 
 
@@ -921,14 +934,17 @@ class Main:
 
         parser_h = subparsers.add_parser('html', parents=[parent_base], help='generate html for questions')
         parser_h.add_argument('--remote', '-r', type=str, default="", help="root remote path")
-        parser_h.add_argument('--index', '-i', action='store_true', help="insert index in name")
-        parser_h.add_argument('--latex', '-l', action='store_true', help="enable latex rendering")
+        parser_h.add_argument('--dindex', action='store_true', help="disable insert index in name")
+        parser_h.add_argument('--dlatex', action='store_true', help="disable latex rendering")
         parser_h.add_argument('--rebuild', action='store_true', help="force rebuild all")
         parser_h.set_defaults(func=Main.html)
 
         parser_v = subparsers.add_parser('vpl', parents=[parent_base], help='generate vpl for questions')
         parser_v.add_argument('--rebuild', action='store_true', help="force rebuild all")
         parser_v.set_defaults(func=Main.vpl)
+
+        parser_u = subparsers.add_parser('update', parents=[parent_base], help='update indexer')
+        parser_u.set_defaults(func=Main.update)
 
         args = parser.parse_args()
 

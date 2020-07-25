@@ -1,8 +1,8 @@
-./indexer.py manual Readme.md --show
-./indexer.py auto auto.md -tif
+./indexer.py manual Readme.md
+./indexer.py auto auto.md
 ./indexer.py links
 ./indexer.py board
-./indexer.py html -li --remote "https://raw.githubusercontent.com/senapk/indexer/master"
+./indexer.py html --remote "https://raw.githubusercontent.com/senapk/indexer/master"
 ./indexer.py vpl
 
 # find base -name .html -delete #remove all .html
