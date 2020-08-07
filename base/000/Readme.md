@@ -10,6 +10,17 @@
 [url remota2](https://qualquer_coisa)
 
 
+$$ y = mx +b $$
+
+$$y=5$$
+
+$$    
+\mathcal L_{\mathcal T}(\vec{\lambda})
+= \sum_{(\mathbf{x},\mathbf{s})\in \mathcal T}
+    \log P(\mathbf{s}\mid\mathbf{x}) - \sum_{i=1}^m
+    \frac{\lambda_i^2}{2\sigma^2}
+$$
+
 
 ## Ação
 

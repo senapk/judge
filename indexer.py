@@ -720,7 +720,7 @@ class Manual:
         return cont
 
     @staticmethod
-    def refactor_line(line: str, hook: str, header: str, base: str, hide: bool):
+    def refactor_line(line: str, hook: str, header: str, base: str, hide: bool, root: bool):
         prefix = Manual.calc_prefix(line)
         words = header.split(" ")
         tags = [word for word in words if word.startswith("#") and len(word) != word.count('#')]
@@ -729,7 +729,10 @@ class Manual:
         if not hide:
             line += '@' + hook + ' '
         line += title
-        line += '](' + Util.join([base, hook, 'Readme.md']) + '#' + Util.get_md_link(header) + ') '
+        if root:
+            line += '](' + Util.join([base, hook]) + ') '
+        else:
+            line += '](' + Util.join([base, hook, 'Readme.md']) + '#' + Util.get_md_link(header) + ') '
 
         extra = []
         if hide:
@@ -759,13 +762,13 @@ class Manual:
         return list(zip(line_list, hook_list, header_list))
 
     @staticmethod
-    def generate_new_list(line_hook_header_readme, base, hide) -> List[str]:
+    def generate_new_list(line_hook_header_readme, base, hide, root) -> List[str]:
         new_line_list = []
         for line, hook, header in line_hook_header_readme:
             if hook is None or header is None:
                 new_line_list.append(line)
             else:
-                new_line_list.append(Manual.refactor_line(line, hook, header, base, hide))
+                new_line_list.append(Manual.refactor_line(line, hook, header, base, hide, root))
         return new_line_list
 
     @staticmethod
@@ -793,10 +796,10 @@ class Manual:
                 print(line)
 
     @staticmethod
-    def indexer(hook_header_base, base, path, hide, show):
+    def indexer(hook_header_base, base, path, hide, show, root):
         line_list = Manual.load_lines(path)
         line_hook_header_readme = list(Manual.load_line_hook_header_from_readme(line_list, hook_header_base))
-        new_line_list = Manual.generate_new_list(line_hook_header_readme, base, hide)
+        new_line_list = Manual.generate_new_list(line_hook_header_readme, base, hide, root)
         Manual.update_readme(line_list, new_line_list, path)
         Manual.find_not_used_hooks(line_hook_header_readme, hook_header_base, base, hide, show)
         Manual.find_not_found_hooks(line_hook_header_readme)
@@ -804,9 +807,9 @@ class Manual:
 
 class Actions:
     @staticmethod
-    def manual(base: str, file: str, hide_key: bool, show: bool):
+    def manual(base: str, file: str, hide_key: bool, show: bool, root: bool):
         hook_header_base = Base.load_hook_header_from_base(base)
-        Manual.indexer(hook_header_base, base, file, hide_key, show)
+        Manual.indexer(hook_header_base, base, file, hide_key, show, root)
         TOC.add_toc(file)
 
     @staticmethod
@@ -870,7 +873,7 @@ class Actions:
 class Main:
     @staticmethod
     def manual(args):
-        Actions.manual(args.base, args.path, args.dindex, not args.dshow)
+        Actions.manual(args.base, args.path, args.dindex, not args.dshow, args.root)
 
     @staticmethod
     def auto(args):
@@ -908,6 +911,7 @@ class Main:
         parser_m.add_argument('path', type=str, help="source file do load and rewrite")
         parser_m.add_argument('--dindex', action='store_true', help="disable index key")
         parser_m.add_argument('--dshow', action='store_true', help="disable show missing indexes")
+        parser_m.add_argument('--root', action='store_true', help="link send to folder instead file")
         parser_m.set_defaults(func=Main.manual)
 
         parser_a = subparsers.add_parser('auto', parents=[parent_base], help='create auto sorted index.')
