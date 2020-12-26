@@ -182,7 +182,7 @@ class TOC:
             print("Create an entry with the text:")
             print(TOC.tag_begin)
             print(TOC.tag_end)
-            print("in your file.")
+            print("in the file", path)
             print("Use '[]()' string in the lines that you want to hide in toc")
 
 
@@ -593,7 +593,7 @@ class HTML:
             exit(1)
 
     @staticmethod
-    def _insert_remote_url(content: str, remote_url: str) -> str:
+    def insert_remote_url(content: str, remote_url: str) -> str:
         regex = r"\[(.*)\]\((\s*)([^:\s]*)(\s*)\)"
         subst = "[\\1](" + remote_url + "\\3)"
         result = re.sub(regex, subst, content, 0, re.MULTILINE)
@@ -601,19 +601,19 @@ class HTML:
 
     @staticmethod
     #  remote_master is something like https://raw.githubusercontent.com/qxcodefup/arcade/master
-    def generate(base: str, itens: List[Item], insert_hook: bool, enable_latex: bool, remote_master_url: str, rebuild_all: bool):
+    def generate(base: str, itens: List[Item], insert_hook: bool, enable_latex: bool, remote_master_url: str, rebuild_all: bool, output: str):
         for item in itens:
             hook = ("@" + item.hook) if insert_hook else ""
 
             payload = item.payload
             if remote_master_url != "":
                 remote_hook = remote_master_url.rstrip("/") + "/" + base + "/" + item.hook + "/"
-                payload = HTML._insert_remote_url(payload, remote_hook)
+                payload = HTML.insert_remote_url(payload, remote_hook)
 
             md_content = "## " + hook + "\n" + item.fulltitle + "\n" + payload
             title = " ".join([hook, item.title])
 
-            output_file = Util.join([item.base, item.hook, ".html"])
+            output_file = Util.join([item.base, item.hook, output])
 
             if FileItem.has_changes(item.path_full, output_file) or rebuild_all:
                 print("  regenerating html for hook", item.hook)
@@ -641,9 +641,9 @@ class VPL:
             exit(1)
 
     @staticmethod
-    def generate(itens: List[Item], rebuild_all: bool):
+    def generate(itens: List[Item], rebuild_all: bool, output: str):
         for item in itens:
-            output_file = Util.join([item.base, item.hook, ".vpl"])
+            output_file = Util.join([item.base, item.hook, output])
             extra_tests = Util.join([item.base, item.hook, "t.tio"])
 
             to_rebuild = False
@@ -732,7 +732,7 @@ class Manual:
         if root:
             line += '](' + Util.join([base, hook]) + ') '
         else:
-            line += '](' + Util.join([base, hook, 'Readme.md']) + '#' + Util.get_md_link(header) + ') '
+            line += '](' + Util.join([base, hook, 'Readme.md']) + ') '
 
         extra = []
         if hide:
@@ -779,13 +779,13 @@ class Manual:
                 f.write("\n".join(new_line_list))
 
     @staticmethod
-    def find_not_used_hooks(line_hook_header_readme, hook_header_base, base, hide, show):
+    def find_not_used_hooks(line_hook_header_readme, hook_header_base, base, hide, show, root):
         hooks_readme = [item[1] for item in line_hook_header_readme]
         missing_hook_header = [pair for pair in hook_header_base if pair[0] not in hooks_readme]
         if show and len(missing_hook_header) > 0:
             print('Warning: There are entries not used:')
             for hook, header in missing_hook_header:
-                print(Manual.refactor_line("", hook, header, base, hide))
+                print(Manual.refactor_line("", hook, header, base, hide, root))
 
     @staticmethod
     def find_not_found_hooks(line_hook_header_readme):
@@ -801,7 +801,7 @@ class Manual:
         line_hook_header_readme = list(Manual.load_line_hook_header_from_readme(line_list, hook_header_base))
         new_line_list = Manual.generate_new_list(line_hook_header_readme, base, hide, root)
         Manual.update_readme(line_list, new_line_list, path)
-        Manual.find_not_used_hooks(line_hook_header_readme, hook_header_base, base, hide, show)
+        Manual.find_not_used_hooks(line_hook_header_readme, hook_header_base, base, hide, show, root)
         Manual.find_not_found_hooks(line_hook_header_readme)
 
 
@@ -844,18 +844,18 @@ class Actions:
         Links.generate(itens, path)
 
     @staticmethod
-    def html(base, remote, index, latex, rebuild):
+    def html(base, remote, index, latex, rebuild, output):
         print("Generating htmls")
         itens = ItemRepository(base).load()
         itens = sorted(itens, key=lambda x: x.hook)
-        HTML.generate(base, itens, index, latex, remote, rebuild)
+        HTML.generate(base, itens, index, latex, remote, rebuild, output)
 
     @staticmethod
-    def vpl(base, rebuild):
+    def vpl(base, rebuild, output):
         print("Generating vpl")
         itens = ItemRepository(base).load()
         itens = sorted(itens, key=lambda x: x.hook)
-        VPL.generate(itens, rebuild)
+        VPL.generate(itens, rebuild, output)
 
     @staticmethod
     def update():
@@ -889,11 +889,11 @@ class Main:
 
     @staticmethod
     def html(args):
-        Actions.html(args.base, args.remote, not args.dindex, not args.dlatex, args.rebuild)
+        Actions.html(args.base, args.remote, not args.dindex, not args.dlatex, args.rebuild, args.output)
 
     @staticmethod
     def vpl(args):
-        Actions.vpl(args.base, args.rebuild)
+        Actions.vpl(args.base, args.rebuild, args.output)
 
     @staticmethod
     def update(args):
@@ -939,6 +939,7 @@ class Main:
         parser_l.set_defaults(func=Main.links)
 
         parser_h = subparsers.add_parser('html', parents=[parent_base], help='generate html for questions')
+        parser_h.add_argument('--output', '-o', type=str, default=".html", help="name of output file")
         parser_h.add_argument('--remote', '-r', type=str, default="", help="root remote path")
         parser_h.add_argument('--dindex', action='store_true', help="disable insert index in name")
         parser_h.add_argument('--dlatex', action='store_true', help="disable latex rendering")
@@ -946,6 +947,7 @@ class Main:
         parser_h.set_defaults(func=Main.html)
 
         parser_v = subparsers.add_parser('vpl', parents=[parent_base], help='generate vpl for questions')
+        parser_v.add_argument('--output', '-o', type=str, default=".vpl", help="name of output file")
         parser_v.add_argument('--rebuild', action='store_true', help="force rebuild all")
         parser_v.set_defaults(func=Main.vpl)
 
