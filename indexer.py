@@ -8,6 +8,7 @@ import io
 import argparse
 import tempfile
 import subprocess
+import json
 from shutil import rmtree
 from typing import Dict, List, Tuple, Union, Optional  # , Any, Callable
 import configparser
@@ -651,7 +652,7 @@ class VPL:
             if os.path.isfile(extra_tests):
                 to_rebuild = to_rebuild or FileItem.has_changes(extra_tests, output_file)
             if to_rebuild or rebuild_all:
-                print("  regenerating .vpl for hook", item.hook)
+                print("  regenerating " + output + " for hook", item.hook)
                 input_files = [item.path_full, extra_tests]
                 VPL._generate_cases(input_files, output_file)
 
@@ -805,6 +806,50 @@ class Manual:
         Manual.find_not_found_hooks(line_hook_header_readme)
 
 
+# Format used to send additional files to VPL
+class JsonFile:
+    def __init__(self, name: str, contents: str):
+        self.name: str = name
+        self.contents: str = contents
+        self.encoding: int = 0
+
+    def __str__(self):
+        return self.name + ":" + self.contents + ":" + str(self.encoding)
+
+
+class JsonVPL:
+    def __init__(self, title: str, description: str, tests: str = ""):
+        self.title: str = title
+        self.description: str = description
+        self.executionFiles: List[JsonFile] = [JsonFile("vpl_evaluate.cases", tests)]
+        self.requiredFile: Optional[JsonFile] = None
+
+    def to_json(self) -> str:
+        return json.dumps(self, default=lambda o: o.__dict__, indent=4)
+
+    def __str__(self):
+        return self.to_json()
+
+
+class VplLoader:
+    # receive a folder and return the json string
+    @staticmethod
+    def load_from_folder(path) -> VPL:
+        folder = os.path.normpath(path).split(os.sep)[-1]
+        with open(path + os.sep + "Readme.md") as f:
+            title = f.read().split("\n")[0]
+            words = title.split(" ")
+            if words[0].count("#") == len(words[0]):  # only #
+                del words[0]
+            title = "@" + folder + " " + " ".join(words)
+        with open(path + os.sep + "q.html") as f:
+            description = f.read()
+        with open(path + os.sep + "q.vpl") as f:
+            tests = f.read()
+        return JsonVPL(title, description, tests)
+
+
+
 class Actions:
     @staticmethod
     def manual(base: str, file: str, hide_key: bool, show: bool, root: bool):
@@ -869,6 +914,16 @@ class Actions:
         print(out)
         return 0
 
+    @staticmethod
+    def mapi(base: str):
+        itens = ItemRepository(base).load()
+        for item in itens:
+            input_folder = Util.join([item.base, item.hook])
+            output_file = Util.join([item.base, item.hook, "mapi.json"])
+            with open(output_file, "w") as f:
+                vpl = VplLoader.load_from_folder(input_folder)
+                f.write(str(vpl) + "\n")
+
 
 class Main:
     @staticmethod
@@ -898,6 +953,10 @@ class Main:
     @staticmethod
     def update(args):
         Actions.update()
+
+    @staticmethod
+    def mapi(args):
+        Actions.mapi(args.base)
 
     @staticmethod
     def main():
@@ -950,6 +1009,10 @@ class Main:
         parser_v.add_argument('--output', '-o', type=str, default=".vpl", help="name of output file")
         parser_v.add_argument('--rebuild', action='store_true', help="force rebuild all")
         parser_v.set_defaults(func=Main.vpl)
+
+        parser_j = subparsers.add_parser('mapi', parents=[parent_base], help='generate mapi dir for questions')
+        parser_j.set_defaults(func=Main.mapi)
+
 
         parser_u = subparsers.add_parser('update', parents=[parent_base], help='update indexer')
         parser_u.set_defaults(func=Main.update)
