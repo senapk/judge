@@ -136,7 +136,6 @@ class TOC:
             return True, found[1]
         return False, ""
 
-
     @staticmethod
     def merge_toc(readme_content, toc):
         subst = TOC.tag_begin + "\\n" + toc + "\\n" + TOC.tag_end
