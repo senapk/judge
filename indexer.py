@@ -834,13 +834,14 @@ class JsonVPL:
 class VplLoader:
     # receive a folder and return the json string
     @staticmethod
-    def load_from_folder(path) -> VPL:
+    def load_from_folder(path) -> JsonVPL:
         folder = os.path.normpath(path).split(os.sep)[-1]
         with open(path + os.sep + "Readme.md") as f:
             title = f.read().split("\n")[0]
             words = title.split(" ")
             if words[0].count("#") == len(words[0]):  # only #
                 del words[0]
+            words = [word for word in words if not word.startswith("#")] #removendo as tags
             title = "@" + folder + " " + " ".join(words)
         with open(path + os.sep + "q.html") as f:
             description = f.read()
@@ -921,9 +922,8 @@ class Actions:
             input_folder = Util.join([item.base, item.hook])
             output_file = Util.join([item.base, item.hook, "mapi.json"])
             with open(output_file, "w") as f:
-                vpl = VplLoader.load_from_folder(input_folder)
-                f.write(str(vpl) + "\n")
-
+                jvpl = VplLoader.load_from_folder(input_folder)
+                f.write(str(jvpl) + "\n")
 
 class Main:
     @staticmethod
@@ -1012,7 +1012,6 @@ class Main:
 
         parser_j = subparsers.add_parser('mapi', parents=[parent_base], help='generate mapi dir for questions')
         parser_j.set_defaults(func=Main.mapi)
-
 
         parser_u = subparsers.add_parser('update', parents=[parent_base], help='update indexer')
         parser_u.set_defaults(func=Main.update)
