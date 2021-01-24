@@ -10,7 +10,6 @@ sh -c "$(wget -O- https://raw.githubusercontent.com/senapk/indexer/master/instal
 <!--TOC_BEGIN-->
 - [Instalação](#instalação)
 - [Exemplo de uso](#exemplo-de-uso)
-
 <!--TOC_END-->
 
 
