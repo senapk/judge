@@ -11,7 +11,7 @@ def insert_remote_url(content: str, remote_url: Optional[str]) -> str:
         return content
     if not remote_url.endswith("/"):
         remote_url += "/"
-    regex = r"\[(.*)\]\((\s*)([^:\s]*)(\s*)\)"
+    regex = r"\[(.*)\]\((\s*)([^#:\s]*)(\s*)\)"
     subst = "[\\1](" + remote_url + "\\3)"
     result = re.sub(regex, subst, content, 0, re.MULTILINE)
     return result

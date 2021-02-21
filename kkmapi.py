@@ -31,8 +31,6 @@ class JsonVPL:
     def __str__(self):
         return self.to_json()
 
-
-
 def load_from_folder(path) -> JsonVPL:
     folder = os.path.normpath(path).split(os.sep)[-1]
     with open(path + os.sep + "Readme.md") as f:
