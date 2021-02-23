@@ -14,8 +14,6 @@ import json
 import subprocess
 from subprocess import PIPE
 
-css_path = '/home/tiger/Dropbox/gits/0_tools/indexer/pandoc.css'
-
 def generate_html(input_file: str, output_file: str, enable_latex: bool):
     hook = os.path.abspath(input_file).split(os.sep)[-2]
     lines = open(input_file).read().split("\n")
@@ -28,7 +26,7 @@ def generate_html(input_file: str, output_file: str, enable_latex: bool):
     with open(temp_input, "w") as f:
         f.write("## " + title + " " + " ".join(tags) + "\n" + content)
     fulltitle = title.replace('!', '\\!').replace('?', '\\?')
-    cmd = ["pandoc", temp_input, '--css', css_path, '--metadata', 'pagetitle=' + fulltitle, '-s', '-o', output_file]
+    cmd = ["pandoc", temp_input, '--css', CssStyle.get_file(), '--metadata', 'pagetitle=' + fulltitle, '-s', '-o', output_file]
     if enable_latex:
         cmd.append("--mathjax")
     try:
@@ -155,6 +153,9 @@ def mapi_generate(source_dir, destin_dir):
 
     mapi_build(readme_file, description_file, tests_file, required, keep, upload, output_file)
 
+def last_update(folder):
+    return max([getmtime(join(folder, f)) for f in os.listdir(folder)])
+
 def mirror(input_rep, output_rep, remote, rebuild):
     input_base = join(input_rep, "base")
     output_base = join(output_rep, "base")
@@ -166,10 +167,10 @@ def mirror(input_rep, output_rep, remote, rebuild):
             os.mkdir(destin_dir)
 
         # max getmtime of all files in source dir
-        smtime = max([getmtime(join(source_dir, f)) for f in os.listdir(source_dir)])
-        dmtime = max([getmtime(join(destin_dir, f)) for f in os.listdir(destin_dir)])
+        smtime = last_update(source_dir)
+        dmtime = last_update(destin_dir)
         
-        if rebuild or not os.path.exists(destin_dir) or smtime > dmtime:
+        if rebuild or smtime > dmtime:
             print("updating", hook)
             cp_images(source_dir, destin_dir)
             output_readme = join(destin_dir, "Readme.md")
@@ -184,6 +185,18 @@ def mirror(input_rep, output_rep, remote, rebuild):
     for hook in sorted(hooks_output):
         if hook not in hooks_input:
             shutil.rmtree(join(output_base, hook))
+
+class CssStyle:
+    data = "body,li{color:#000}body{line-height:1.4em;max-width:42em;padding:1em;margin:auto}li{margin:.2em 0 0;padding:0}h1,h2,h3,h4,h5,h6{border:0!important}h1,h2{margin-top:.5em;margin-bottom:.5em;border-bottom:2px solid navy!important}h2{margin-top:1em}code,pre{border-radius:3px}pre{overflow:auto;background-color:#f8f8f8;border:1px solid #2f6fab;padding:5px}pre code{background-color:inherit;border:0;padding:0}code{background-color:#ffffe0;border:1px solid orange;padding:0 .2em}a{text-decoration:underline}ol,ul{padding-left:30px}em{color:#b05000}table.text td,table.text th{vertical-align:top;border-top:1px solid #ccc;padding:5px}"
+    path = None
+    @staticmethod
+    def get_file():
+        if CssStyle.path is None:
+            CssStyle.path = tempfile.mktemp(suffix=".css")
+            with open(CssStyle.path, "w") as f:
+                f.write(CssStyle.data)
+        return CssStyle.path
+
 
 def main():
     parser = argparse.ArgumentParser()
