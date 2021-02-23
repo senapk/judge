@@ -146,12 +146,13 @@ def main():
     parser.add_argument('--base', '-b', type=str, default='base')
     parser.add_argument('--dindex', action='store_true', help="disable index key")
     parser.add_argument('--root', action='store_true', help="link sending to folder instead to file")
-
+    parser.add_argument("--quiet", '-q', action='store_true', help="dont show missing or wrong entries")
     args = parser.parse_args()
     base = Base(args.base)
     manual = Manual(base, args.path, args.dindex, args.root)
     manual.update_readme()
-    manual.find_unmatched()
+    if not args.quiet:
+        manual.find_unmatched()
 
 if __name__ == '__main__':
     main()

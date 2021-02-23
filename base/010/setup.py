@@ -3,7 +3,6 @@ import json
 
 data = {}
 
-
 parser = argparse.ArgumentParser()
 parser.add_argument("--required", "-r", type=str)
 parser.add_argument("--system", "-s", type=str, nargs="*", help="system files")
@@ -12,4 +11,5 @@ args = parser.parse_args()
 data["keep"] = args.keep
 data["system"] = args.system
 data["required"] = args.required
-print(json.dumps(data, indent=4))
+with open(".mapi", "w") as f:
+    f.write(json.dumps(data, indent=4) + "\n")
