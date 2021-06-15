@@ -1,10 +1,9 @@
+Updating TOC in Readme.md
 ## Instalação
 
 <!--TOC_BEGIN-->
 - [Instalação](#instalação)
 - [Exemplo de uso](#exemplo-de-uso)
-    - [main.c](#mainc)
-    - [lib.h](#libh)
 <!--TOC_END-->
 
 ```
@@ -13,26 +12,26 @@ sh -c "$(wget -O- https://raw.githubusercontent.com/senapk/indexer/master/instal
 
 ## Exemplo de uso
 
-<!--ADD main.c c-->
-<!--BEGIN-->
-### main.c
+<!--CMD !INCLUDECODE "main.c" (c)-->
+<!--DEL_B-->
 ```c
 #include <stdio.h>
 
 int main(){
     return 0;
 }
+
 ```
-<!---END--->
-
-
+<!--DEL_E-->
+<!--DEL_BEGIN-->
+- [Instalação](#instalação)
+- [Exemplo de uso](#exemplo-de-uso)
+<!--DEL_END-->
 
 
 - [@009 L2 - Imprimir vetor formatado](base/009/Readme.md#funcoes-l2---imprimir-vetor-formatado)  [](#funcoes)
-
-<!--ADD lib.h c-->
-<!--BEGIN-->
-### lib.h
+<!--CMD !INCLUDECODE "lib.h" (c)-->
+<!--DEL_B-->
 ```c
 #include <stdlib.h>
 #include <stdio.h>
@@ -40,10 +39,13 @@ int main(){
     puts("lib");
     return 0;
 }
+
 ```
-<!---END--->
-
-
+<!--DEL_E-->
+<!--DEL_BEGIN-->
+bananas
+de pijamas
+<!--DEL_END-->
 
 
 
@@ -56,3 +58,14 @@ int main(){
 - [@004 L3 - Mete bala](base/004/Readme.md#operações-l3---mete-bala)  [](#operações)
 - [@003 L2 - Opala bebedor](base/003/Readme.md#operações-l2---opala-bebedor)  [](#operações)
 - [@007 L3 - Tetris (Fazendo a peça cair)](base/007/Readme.md#matrizes-l3---tetris-fazendo-a-peça-cair)  [](#matrizes)
+
+
+```c
+#include <stdio.h>
+
+int main(){
+    return 0;
+}
+
+```
+

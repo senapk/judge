@@ -141,6 +141,7 @@ def mapi_generate(source_dir, destin_dir):
     cfg_file = join(source_dir, ".mapi")
     required = None
     keep = []
+    upload = []
     if os.path.exists(cfg_file):
         f = open(cfg_file)
         config = json.load(f)
@@ -148,7 +149,10 @@ def mapi_generate(source_dir, destin_dir):
         required = config["required"]
         if required is not None:
             required = join(source_dir, required)
+            shutil.copy(required, destin_dir)
         keep = [join(source_dir, f) for f in config["keep"]]
+        for entry in keep:
+            shutil.copy(entry, destin_dir)
         upload = [join(source_dir, f) for f in config["upload"]]
 
     mapi_build(readme_file, description_file, tests_file, required, keep, upload, output_file)
@@ -156,21 +160,33 @@ def mapi_generate(source_dir, destin_dir):
 def last_update(folder):
     return max([getmtime(join(folder, f)) for f in os.listdir(folder)])
 
-def mirror(input_rep, output_rep, remote, rebuild):
+def check_rebuild(source_dir, destin_dir, rebuild_all):
+    rebuild_this = rebuild_all
+    if not os.path.exists(destin_dir):
+        os.mkdir(destin_dir)
+        rebuild_this = True
+
+    if len(os.listdir(destin_dir)) == 0:
+        rebuild_this = True
+
+    if not rebuild_this:
+        smtime = last_update(source_dir)
+        dmtime = last_update(destin_dir)
+        if smtime > dmtime:
+            rebuild_this = True
+            
+    return rebuild_this
+
+def mirror(input_rep, output_rep, remote, rebuild_all):
     input_base = join(input_rep, "base")
     output_base = join(output_rep, "base")
     hooks_input = [hook for hook in os.listdir(input_base) if os.path.isdir(join(input_base, hook))]
     for hook in sorted(hooks_input):
+
         source_dir = join(input_base, hook)
         destin_dir = join(output_base, hook)
-        if not os.path.exists(destin_dir):
-            os.mkdir(destin_dir)
-
-        # max getmtime of all files in source dir
-        smtime = last_update(source_dir)
-        dmtime = last_update(destin_dir)
         
-        if rebuild or smtime > dmtime:
+        if check_rebuild(source_dir, destin_dir, rebuild_all):
             print("updating", hook)
             cp_images(source_dir, destin_dir)
             output_readme = join(destin_dir, "Readme.md")
