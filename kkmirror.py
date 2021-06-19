@@ -77,7 +77,7 @@ def mirror(input_rep, output_rep, remote, rebuild_all):
             output_readme = join(destin_dir, "Readme.md")
             make_readme_remote_newtitle(source_dir, output_readme, remote, hook)
             generate_html(output_readme, join(destin_dir, "q.html"), True)
-            make_tests(source_dir, join(destin_dir, "q.tio"))
+#            make_tests(source_dir, join(destin_dir, "q.tio"))
             make_tests(source_dir, join(destin_dir, "q.vpl"))
             
             mapi_generate(source_dir, destin_dir)
