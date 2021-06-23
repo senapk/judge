@@ -27,6 +27,13 @@ def insert_remote_url(content: str, remote_url: Optional[str]) -> str:
 
 def make_readme_remote_newtitle(source_dir, output_file, remote, hook):
     content = open(join(source_dir, "Readme.md")).read()
+    lines = content.split("\n")
+    header = lines[0]
+    words = header.split(" ")
+    del words[0]
+    words = ["## @" + hook] + words
+    lines[0] = " ".join(words)
+    content = "\n".join(lines)
     content = insert_remote_url(content, remote + hook)
     open(output_file, "w").write(content)
 
@@ -62,6 +69,7 @@ def check_rebuild(source_dir, destin_dir, rebuild_all):
             
     return rebuild_this
 
+
 def mirror(input_rep, output_rep, remote, rebuild_all):
     input_base = join(input_rep, "base")
     output_base = join(output_rep, "base")
@@ -72,15 +80,15 @@ def mirror(input_rep, output_rep, remote, rebuild_all):
         destin_dir = join(output_base, hook)
         
         if check_rebuild(source_dir, destin_dir, rebuild_all):
+            output_readme_path = join(destin_dir, "Readme.md")
+            output_test_path = join(destin_dir, "q.vpl")
+            output_mapi_path = join(destin_dir, "mapi.json")
             print("updating", hook)
             cp_images(source_dir, destin_dir)
-            output_readme = join(destin_dir, "Readme.md")
-            make_readme_remote_newtitle(source_dir, output_readme, remote, hook)
-            generate_html(output_readme, join(destin_dir, "q.html"), True)
-#            make_tests(source_dir, join(destin_dir, "q.tio"))
-            make_tests(source_dir, join(destin_dir, "q.vpl"))
+            make_readme_remote_newtitle(source_dir, output_readme_path, remote, hook)
+            make_tests(source_dir, output_test_path)
             
-            mapi_generate(source_dir, destin_dir)
+            subprocess.run(["mbuild", "-m", output_readme_path, "-t", output_test_path, "-l", source_dir, "-o", output_mapi_path])
 
     hooks_output = [hook for hook in os.listdir(output_base) if os.path.isdir(join(output_base, hook))]
     for hook in sorted(hooks_output):
