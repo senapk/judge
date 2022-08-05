@@ -1,8 +1,0 @@
-{
-    "keep": [
-        "main.c",
-        "lib.h"
-    ],
-    "system": null,
-    "required": "lib.c"
-}

@@ -4,21 +4,17 @@
 import re
 import os
 import argparse
+import enum
 from typing import Optional
-import tempfile
 
-class TOC:
-    tag_begin = r"<!--TOC_BEGIN-->"
-    tag_end = r"<!--TOC_END-->"
-    regex = tag_begin + r"(.*)" + tag_end
-
+class TocMaker:
     @staticmethod
-    def only_hashtags(x: str) -> bool:
+    def __only_hashtags(x: str) -> bool:
         return len(x) == x.count("#") and len(x) > 0
 
     # generate md link for the text
     @staticmethod
-    def get_md_link(title: Optional[str]) -> str:
+    def __get_md_link(title: Optional[str]) -> str:
         if title is None:
             return ""
         title = title.lstrip(" #").rstrip()
@@ -34,75 +30,62 @@ class TOC:
         return out
 
     @staticmethod
-    def get_level(line: str) -> int:
+    def __get_level(line: str) -> int:
         return len(line.split(" ")[0])
 
     @staticmethod
-    def get_content(line: str) -> str:
+    def __get_content(line: str) -> str:
         return " ".join(line.split(" ")[1:])
 
     @staticmethod
-    def remove_code_blocks(content):
+    def __remove_code_fences(content: str) -> str:
         regex = r"^```.*?```\n"
         return re.sub(regex, "", content, 0, re.MULTILINE | re.DOTALL)
 
-    @staticmethod
-    def search_old_toc(readme_content):
-        found = re.search(TOC.regex, readme_content, re.MULTILINE | re.DOTALL)
-        if found:
-            return True, found[1]
-        return False, ""
 
     @staticmethod
-    def merge_toc(readme_content, toc):
-        subst = TOC.tag_begin + "\\n" + toc + "\\n" + TOC.tag_end
-        merged_content = re.sub(TOC.regex, subst, readme_content, 0, re.MULTILINE | re.DOTALL)
-        return merged_content
-
-    @staticmethod
-    def make_toc(file_content):
-        content = TOC.remove_code_blocks(file_content)
+    def execute(content: str) -> str:
+        content = TocMaker.__remove_code_fences(content)
 
         lines = content.split("\n")
         disable_tag = "[]()"
-        lines = [line for line in lines if TOC.only_hashtags(line.split(" ")[0]) and line.find(disable_tag) == -1]
+        lines = [line for line in lines if TocMaker.__only_hashtags(line.split(" ")[0]) and line.find(disable_tag) == -1]
 
         min_level = 1
         toc_lines = []
         for line in lines:
-            level = (TOC.get_level(line) - 1) - min_level
+            level = (TocMaker.__get_level(line) - 1) - min_level
             if level < 0:
                 continue
-            text = "    " * level + "- [" + TOC.get_content(line) + "](#" + TOC.get_md_link(line) + ")"
+            text = "    " * level + "- [" + TocMaker.__get_content(line) + "](#" + TocMaker.__get_md_link(line) + ")"
             toc_lines.append(text)
         toc_text = "\n".join(toc_lines)
         return toc_text
 
+class Toc:
     @staticmethod
-    def add_toc(file_content, quiet_mode: bool, path):
-        file_content = file_content.replace("!TOC\n", TOC.tag_begin + "\n" + TOC.tag_end + "\n")
+    def execute(content: str) -> str:
+        new_toc = TocMaker.execute(content)
+        regex = r"\[\]\(toc\)\n" + r"(.*?)"+ r"\[\]\(toc\)"
+        subst = r"[](toc)\n" + new_toc + r"\n[](toc)"
+        return re.sub(regex, subst, content, 0, re.MULTILINE | re.DOTALL)
 
-        found, _text = TOC.search_old_toc(file_content)
-        if found:
-            toc_text = TOC.make_toc(file_content)
-            updated_content = TOC.merge_toc(file_content, toc_text)
-            if updated_content != file_content and not quiet_mode:
-                print("Updating TOC in", path)
-            return updated_content
-        elif not quiet_mode:
-            print("Create an entry with the text:\n!TOC")
-            print("in the file", path)
-            print("Use '[]()' string in the entries that you want to hide in toc")
-        return file_content
+
+class Mode(enum.Enum):
+    ADD = 1
+    RAW = 2
+    DEL = 3
 
 class ADD:
     @staticmethod
-    def evaluate(line: str, store: bool, delete: bool):
-        if delete:
+    def evaluate(line: str, mode: Mode, keep_comment: bool):
+        if mode == Mode.DEL:
             return False
-        elif store:
+        if "//" in line and not keep_comment:
+            return False
+        if mode == Mode.RAW:
             return True
-        for token in ["", "    "]:
+        for token in ["    "]:
             if line == token:
                 return False
         for token in ["import", "    @", "        ", "    }"]:
@@ -111,28 +94,34 @@ class ADD:
         return True
 
     @staticmethod
-    def transform(line: str, store: bool):
-        if store:
+    def transform(line: str, mode: Mode):
+        if mode == Mode.RAW:
             return line
-        return line.replace("){", ") {").replace(") {", ");")
+        if line == "//":
+            return ""
+        return line.replace("){", ") {")\
+                    .replace("):",   ") :")\
+                    .replace(") :",   ") {")\
+                    .replace(") const {", ") const { ... }")\
+                    .replace(") {", ") { ... }");
 
     @staticmethod
     def process(content: str) -> str:
         lines = content.split("\n")
         output = []
-        store = False
-        delete = False
+        mode = Mode.ADD
+        keep_comment = True
         for line in lines:
-            if "!KEEP" in line:
-                store = True
+            if "!ADD" in line:
+                mode = Mode.ADD
+            elif "!RAW" in line:
+                mode = Mode.RAW
             elif "!DEL" in line:
-                delete = True
-            elif "!OFF" in line:
-                store = False
-            elif "!INS" in line:
-                delete = False
-            elif ADD.evaluate(line, store, delete):
-                line = ADD.transform(line, store)
+                mode = Mode.DEL
+            elif "!NOCOMMENT" in line:
+                keep_comment = False
+            elif ADD.evaluate(line, mode, keep_comment):
+                line = ADD.transform(line, mode)
                 output.append(line)
         return "\n".join(output)
 
@@ -160,6 +149,12 @@ class ADD:
         lines = content.split("\n")
         output = []
         for line in lines:
+            if line.startswith("!ADD"):
+                line = line.replace("!ADD", "<!--ADD")
+                line = line + "-->"
+            if line.startswith("!FILTER"):
+                line = line.replace("!FILTER", "<!--FILTER")
+                line = line + "-->"
             if line.startswith("<!--ADD "):
                 output.append(line)
                 data = line.replace("<!--ADD ", "").replace("-->", "").split(" ")
@@ -177,6 +172,24 @@ class ADD:
         updated = ADD.remove_extra_newline(updated, "ADD_END")
         updated = ADD.remove_extra_newline(updated, "FILTER_END")
         return updated
+
+class Save:
+    @staticmethod
+    # execute filename and content
+    def execute(content):
+        regex = r"\[\]\(save\)\[\]\((.*?)\)\n```[a-z]*\n(.*?)```\n\[\]\(save\)"
+        matches = re.finditer(regex, content, re.MULTILINE | re.DOTALL)
+        
+        for match in matches:
+            path = match.group(1)
+            content = match.group(2)
+            exists = os.path.isfile(path)
+            if exists:
+                content_old = open(path).read()
+            if not exists or content != content_old:
+                with open(path, "w") as f:
+                    print("file", path, "updated")
+                    f.write(content)
 
 class Main:
     @staticmethod
@@ -214,11 +227,11 @@ def main():
         if not result:
             continue
         updated = original
-        updated = TOC.add_toc(updated, args.quiet, path)
+        updated = Toc.execute(updated)
         updated = ADD.remove_above(updated, "ADD", "ADD_END")
         updated = ADD.remove_above(updated, "FILTER", "FILTER_END")
         updated = ADD.insert_files(updated, folder)
-        
+        Save.execute(updated)
         if updated != original:
             with open(path, "w") as f:
                 f.write(updated)
