@@ -6,6 +6,7 @@ import os
 import argparse
 import enum
 from typing import Optional
+from filter import Filter
 
 class TocMaker:
     @staticmethod
@@ -71,114 +72,64 @@ class Toc:
         return re.sub(regex, subst, content, 0, re.MULTILINE | re.DOTALL)
 
 
-class Mode(enum.Enum):
-    ADD = 1
-    RAW = 2
-    DEL = 3
-
-class ADD:
+class Load:
     @staticmethod
-    def evaluate(line: str, mode: Mode, keep_comment: bool):
-        if mode == Mode.DEL:
-            return False
-        if "//" in line and not keep_comment:
-            return False
-        if mode == Mode.RAW:
-            return True
-        for token in ["    "]:
-            if line == token:
-                return False
-        for token in ["import", "    @", "        ", "    }"]:
-            if line.startswith(token):
-                return False
-        return True
+    def execute(content: str) -> str:
+        new_content = ""
+        last = 0
 
-    @staticmethod
-    def transform(line: str, mode: Mode):
-        if mode == Mode.RAW:
-            return line
-        if line == "//":
-            return ""
-        return line.replace("){", ") {")\
-                    .replace("):",   ") :")\
-                    .replace(") :",   ") {")\
-                    .replace(") const {", ") const { ... }")\
-                    .replace(") {", ") { ... }");
-
-    @staticmethod
-    def process(content: str) -> str:
-        lines = content.split("\n")
-        output = []
-        mode = Mode.ADD
-        keep_comment = True
-        for line in lines:
-            if "!ADD" in line:
-                mode = Mode.ADD
-            elif "!RAW" in line:
-                mode = Mode.RAW
-            elif "!DEL" in line:
-                mode = Mode.DEL
-            elif "!NOCOMMENT" in line:
-                keep_comment = False
-            elif ADD.evaluate(line, mode, keep_comment):
-                line = ADD.transform(line, mode)
-                output.append(line)
-        return "\n".join(output)
-
-    @staticmethod
-    def remove_above(content, tagbegin, tagend):
-        regex = r"<!--" + tagbegin + r"(.*?)-->.*?<!--" + tagend + r"-->"
-        replace = "<!--" + tagbegin + "\\1-->"
-        return re.sub(regex, replace, content, 0, re.MULTILINE | re.DOTALL)
-
-    @staticmethod
-    def insert_fences(output, content, language, tagend):
-        output.append("```" + language)
-        output.append(content)
-        output.append("```")
-        output.append("<!--" + tagend + "-->")
-
-    @staticmethod
-    def remove_extra_newline(updated, tag):
-        while "\n\n```\n<!--" + tag + "-->" in updated:
-            updated = updated.replace("\n\n```\n<!--" + tag + "-->", "\n```\n<!--" + tag + "-->")
-        return updated
-
-    @staticmethod
-    def insert_files(content, folder):
-        lines = content.split("\n")
-        output = []
-        for line in lines:
-            if line.startswith("!ADD"):
-                line = line.replace("!ADD", "<!--ADD")
-                line = line + "-->"
-            if line.startswith("!FILTER"):
-                line = line.replace("!FILTER", "<!--FILTER")
-                line = line + "-->"
-            if line.startswith("<!--ADD "):
-                output.append(line)
-                data = line.replace("<!--ADD ", "").replace("-->", "").split(" ")
-                content = open(os.path.join(folder, data[0])).read()
-                ADD.insert_fences(output, content, data[1], "ADD_END")
-            elif line.startswith("<!--FILTER "):
-                output.append(line)
-                data = line.replace("<!--FILTER ", "").replace("-->", "").split(" ")
-                content = open(os.path.join(folder, data[0])).read()
-                content = ADD.process(content)
-                ADD.insert_fences(output, content, data[1], "FILTER_END")
+        regex = r"\[\]\(load\)\[\]\((.*?)\)\n(.*?)\[\]\(load\)"
+        matches = re.finditer(regex, content, re.MULTILINE | re.DOTALL)
+        
+        for match in matches:
+            path = match.group(1)
+            new_content += content[last:match.start()] # inserindo texto entre matches
+            last = match.end()
+            new_content += "[](load)[](" + path + ")\n"
+            if os.path.isfile(path):
+                data = open(path).read()
+                new_content += open(path).read()
+                if data[-1] != "\n":
+                    new_content += "\n"
             else:
-                output.append(line)
-        updated = "\n".join(output)
-        updated = ADD.remove_extra_newline(updated, "ADD_END")
-        updated = ADD.remove_extra_newline(updated, "FILTER_END")
-        return updated
+                print("warning: file", path, "not found")
+            new_content += "[](load)"
+        new_content += content[last:]
+        return new_content
+
+class Filter:
+    @staticmethod
+    def execute(content: str) -> str:
+        new_content = ""
+        last = 0
+
+        regex = r"\[\]\(filter\)\[\]\((.*?)\)\n(.*?)\[\]\(filter\)"
+        matches = re.finditer(regex, content, re.MULTILINE | re.DOTALL)
+        
+        for match in matches:
+            path = match.group(1)
+            new_content += content[last:match.start()] # inserindo texto entre matches
+            last = match.end()
+            new_content += "[](filter)[](" + path + ")\n"
+            if os.path.isfile(path):
+                data = open(path).read()
+                filter = Filter()
+                new_content += filter.process(open(path).read())
+                if data[-1] != "\n":
+                    new_content += "\n"
+            else:
+                print("warning: file", path, "not found")
+            new_content += "[](filter)"
+        new_content += content[last:]
+        return new_content
+            
 
 class Save:
     @staticmethod
     # execute filename and content
-    def execute(content):
+    def execute(file_content):
         regex = r"\[\]\(save\)\[\]\((.*?)\)\n```[a-z]*\n(.*?)```\n\[\]\(save\)"
-        matches = re.finditer(regex, content, re.MULTILINE | re.DOTALL)
+        matches = re.finditer(regex, file_content, re.MULTILINE | re.DOTALL)
         
         for match in matches:
             path = match.group(1)
@@ -228,9 +179,8 @@ def main():
             continue
         updated = original
         updated = Toc.execute(updated)
-        updated = ADD.remove_above(updated, "ADD", "ADD_END")
-        updated = ADD.remove_above(updated, "FILTER", "FILTER_END")
-        updated = ADD.insert_files(updated, folder)
+        updated = Load.execute(updated)
+        updated = Filter.execute(updated)
         Save.execute(updated)
         if updated != original:
             with open(path, "w") as f:

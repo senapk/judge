@@ -22,10 +22,10 @@ cases=./q.tio
 [[ ! -f $cases ]] && tk build "$cases" $readme $sources
 
 # procurando por arquivos de funcionamento do vpl
-vpl_scripts=`find . -type f -maxdepth 1 -iname "vpl_*"`
+vpl_scripts=`find . -maxdepth 1 -iname "vpl_*"`
 
 # procurando por arquivos de definição do problema
-keep=`find . -type f -maxdepth 1 -iname "data*" -o -iname "main*" -o -iname "lib*"`
+keep=`find . -maxdepth 1 -iname "data*" -o -iname "main*" -o -iname "lib*"`
 
 # gerando o arquivo final
 output=./mapi.json

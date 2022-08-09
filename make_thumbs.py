@@ -9,7 +9,7 @@ args = sys.argv[1:]
 for arg in args:
     if not os.path.isdir(arg):
         continue
-    capa = os.path.join(arg, "__capa.jpg")
+    capa = os.path.join(arg, "__cover.jpg")
     thumb = os.path.join(arg, ".thumb.jpg")
     if not os.path.isfile(capa):
         print("{} não tem capa".format(arg))

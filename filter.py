@@ -5,8 +5,7 @@ import re
 import os
 import argparse
 import enum
-from typing import Optional, Tuple
-import tempfile
+from typing import Tuple
 
 
 class Mode(enum.Enum):
@@ -14,7 +13,7 @@ class Mode(enum.Enum):
     RAW = 2
     DEL = 3
 
-class ADD:
+class Filter:
     def __init__(self):
         self.mode = Mode.ADD
         self.level = 1
@@ -46,9 +45,9 @@ class ADD:
         lines = content.split("\n")
         output = []
         for line in lines:
-            if line.endswith("!+"):
+            if line[-3:-1] == "!+":
                 self.mode = Mode.ADD
-                self.level = int(line[line.find("!+") - 1])
+                self.level = int(line[-1])
             elif line.endswith("!="):
                 self.mode = Mode.RAW
             elif line.endswith("!-"):
@@ -86,7 +85,7 @@ def main():
 
     success, content = open_file(args.file)
     if success:
-        content = ADD().process(content)
+        content = Filter().process(content)
         if args.output:
             with open(args.output, "w") as f:
                 f.write(content)
