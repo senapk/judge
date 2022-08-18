@@ -6,7 +6,7 @@ import os
 import argparse
 import enum
 from typing import Optional
-from filter import Filter
+from filter import Filter, Tuple
 
 class TocMaker:
     @staticmethod
@@ -70,6 +70,7 @@ class Toc:
         regex = r"\[\]\(toc\)\n" + r"(.*?)"+ r"\[\]\(toc\)"
         subst = r"[](toc)\n" + new_toc + r"\n[](toc)"
         return re.sub(regex, subst, content, 0, re.MULTILINE | re.DOTALL)
+
 
 
 class Load:
@@ -178,10 +179,14 @@ def main():
         if not result:
             continue
         updated = original
-        updated = Toc.execute(updated)
+        updated_toc = Toc.execute(updated)
+        if updated != updated_toc:
+            print("toc updated:", target)
+            updated = updated_toc
         updated = Load.execute(updated)
         updated = Filter.execute(updated)
         Save.execute(updated)
+        
         if updated != original:
             with open(path, "w") as f:
                 f.write(updated)
