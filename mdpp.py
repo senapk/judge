@@ -68,7 +68,7 @@ class Toc:
     def execute(content: str) -> str:
         new_toc = TocMaker.execute(content)
         regex = r"\[\]\(toc\)\n" + r"(.*?)"+ r"\[\]\(toc\)"
-        subst = r"[](toc)\n" + new_toc + r"\n[](toc)"
+        subst = r"[](toc)\n\n" + new_toc + r"\n[](toc)"
         return re.sub(regex, subst, content, 0, re.MULTILINE | re.DOTALL)
 
 

@@ -38,8 +38,8 @@ class Filter:
         return line.replace("){", ") {")\
                     .replace("):",   ") :")\
                     .replace(") :",   ") {")\
-                    .replace(") const {", ") const { ... }")\
-                    .replace(") {", ") { ... }")
+                    .replace(") const {", ") const; // todo ")\
+                    .replace(") {", "); // todo ")
 
     def process(self, content: str) -> str:
         lines = content.split("\n")

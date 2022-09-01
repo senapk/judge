@@ -4,7 +4,10 @@
 import os
 import re
 import argparse
+import subprocess
 from typing import Optional, List, Dict
+from os.path import join, isdir, isfile, getmtime
+
 
 class Item:
     def __init__(self, base: str, hook: str, header: str):
@@ -34,7 +37,6 @@ class Base:
     def __str__(self):
         return "\n".join([str(item) for item in self.itens.values()])
 
-
 class Entry:
     def __init__(self, line: str, base: Base):
         self.line = line
@@ -61,16 +63,16 @@ class Entry:
 
 class LineFormatter:
     def __init__(self, base_path: str, unlabel: bool, root_target: bool, tab_mode: Optional[str], description: bool):
-        self.base_path = base_path
-        self.unlabel = unlabel
-        self.root_target = root_target
-        self.tab_mode = tab_mode
-        self.description = description
+        self.base_path: str = base_path
+        self.unlabel: bool = unlabel
+        self.root_target: bool = root_target
+        self.tab_mode: bool = tab_mode
+        self.description: bool = description
 
     def format_entry(self, entry: Entry):
         if entry.hook is None or entry.new_header is None:
             return entry.line
-        if self.tab_mode is not None:
+        if self.tab_mode:
             return self.format_tab(entry.hook, entry.new_header)
         return self.format(entry.hook, entry.new_header)
 
@@ -97,11 +99,10 @@ class LineFormatter:
 
     def format_tab(self, hook, header):
         words = header.split(" ")
-        tags = [word for word in words if word.startswith("#") and len(word) != word.count('#')]
         title = " ".join([word for word in words if not word.startswith("#")])
         title, description = title.split("&", 1) if "&" in title else (title, "")
         
-        figura = Manual.join([self.base_path, hook, self.tab_mode])
+        figura = get_thumb_path(self.base_path, hook)
         readme = Manual.join([self.base_path, hook, 'Readme.md'])
         line = "![](" + figura + ")" + " | " + "[@" + hook + " " + title + "](" + readme + ")"
         if self.description:
@@ -117,6 +118,7 @@ class Manual:
         self.line_list = self.load_lines()
         self.entries = [Entry(line, base) for line in self.line_list]
         self.new_line_list = [self.formatter.format_entry(e) for e in self.entries]
+
 
 
     def load_lines(self) -> List[str]:
@@ -157,18 +159,45 @@ class Manual:
             for hook in unused_hooks:
                 print(self.formatter.format(hook, self.base.itens[hook].header))
 
+def get_thumb_path(base_path: str, hook: str) -> str:
+    return os.path.normpath(os.path.join(base_path, "..", ".thumbs", hook + ".jpg"))
+
+def get_cover_path(base_path: str, hook: str) -> str:
+    return os.path.join(base_path, hook, "cover.jpg")
+
+def make_thumbs(base_path: str):
+    hook_list = sorted([hook for hook in os.listdir(base_path) if os.path.isdir(join(base_path, hook))])
+    for hook in hook_list:
+        hook_path = join(base_path, hook)
+        if not isdir(hook_path):
+            continue
+
+        thumb = get_thumb_path(base_path, hook)
+        capa = get_cover_path(base_path, hook)
+
+        if not isfile(capa):
+            print("warning: {} não tem capa".format(hook_path))
+            continue
+
+        # if modification time of thumb is less than capa, rebuild
+        if not isfile(thumb) or getmtime(thumb) < getmtime(capa):
+            print("gerando thumb {}".format(hook))
+            cmd = ["convert", capa, "-resize", "142x80^", "-gravity", "center", "-extent", "142x80", thumb]
+            subprocess.run(cmd)
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('path', type=str, help="source file do load and rewrite")
     parser.add_argument('--base', '-b', type=str, default='base')
-    parser.add_argument('--table', '-t', type=str, help="table mode, parametre is cover filename")
+    parser.add_argument('--table', '-t', action='store_true', help="table mode")
     parser.add_argument('--unlabel', '-u', action='store_true', help="unlabel")
     parser.add_argument('--description', '-d', action='store_true', help="insert description")
     parser.add_argument('--root', '-r', action='store_true', help="link sending to folder instead to file")
     parser.add_argument("--quiet", '-q', action='store_true', help="dont show missing or wrong entries")
     args = parser.parse_args()
     base = Base(args.base)
+    if args.table:
+        make_thumbs(args.base)
     formatter = LineFormatter(base.path, args.unlabel, args.root, args.table, args.description)
     manual = Manual(base, args.path, formatter)
     manual.update_readme()
