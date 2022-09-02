@@ -13,7 +13,7 @@ repo=$2
 [[ ! -d .cache ]] &&  mkdir .cache
 
 
-check_rebuild . .cache/mapi.json || exit 0
+check_rebuild || exit 0
 
 # running local scripts
 local_script=local.sh
@@ -46,4 +46,4 @@ make_mapi  "$title" "$description"\
 
 
 # erasing temporary files
-rm -f "$cases" "$description"
+rm -f "$cases" "$rm_readme" "$description"

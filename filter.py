@@ -87,8 +87,12 @@ def main():
     if success:
         content = Filter().process(content)
         if args.output:
-            with open(args.output, "w") as f:
-                f.write(content)
+            if os.path.isfile(args.output):
+                old = open(args.output).read()
+                if old != content:
+                    open(args.output, "w").write(content)
+            else:                
+                open(args.output, "w").write(content)
         elif args.update:
             with open(args.file, "w") as f:
                 f.write(content)
