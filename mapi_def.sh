@@ -46,4 +46,4 @@ make_mapi  "$title" "$description"\
 
 
 # erasing temporary files
-rm -f "$cases" "$rm_readme" "$description"
+rm -f "$cases" "$description"

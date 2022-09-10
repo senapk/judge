@@ -30,7 +30,7 @@ def last_update(path) -> Tuple[str, float]:
 # retorna se tem atualização e o arquivo mais recente
 def check_rebuild(source: str, target: str) -> Tuple[str, bool]:
     if not os.path.exists(target):
-        return True
+        return [source, True]
     [source_path, source_time] = last_update(source)
     [target_path, target_time] = last_update(target)
     # source tem novas alterações

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import re
 import os
 import argparse
 import enum
@@ -15,18 +14,20 @@ class Mode(enum.Enum):
 
 class Filter:
     def __init__(self):
-        self.mode = Mode.ADD
+        self.mode = Mode.RAW
         self.level = 1
 
+    # decide se a linha deve entrar no texto
     def evaluate(self, line: str):
         if self.mode == Mode.DEL:
             return False
         if self.mode == Mode.RAW:
             return True
         # mode add
-        tab = "    "
-        for token in [(self.level + 1) * tab, self.level * tab + "}"]:
-            if line.startswith(token):
+        if line == "":
+            return True
+        margin = (self.level + 1) * "    "
+        if line.startswith(margin):
                 return False
         return True
 
@@ -38,20 +39,21 @@ class Filter:
         return line.replace("){", ") {")\
                     .replace("):",   ") :")\
                     .replace(") :",   ") {")\
-                    .replace(") const {", ") const; // todo ")\
-                    .replace(") {", "); // todo ")
+                    .replace(") const {", ") const { // todo")\
+                    .replace(") {", ") { // todo ")
 
     def process(self, content: str) -> str:
         lines = content.split("\n")
         output = []
         for line in lines:
-            if line[-3:-1] == "!+":
-                self.mode = Mode.ADD
-                self.level = int(line[-1])
-            elif line.endswith("!="):
-                self.mode = Mode.RAW
-            elif line.endswith("!-"):
-                self.mode = Mode.DEL
+            alone = len(line.split(" ")) == 1
+            if alone and line[-3:-1] == "++":
+                    self.mode = Mode.ADD
+                    self.level = int(line[-1])
+            elif alone and line.endswith("=="):
+                    self.mode = Mode.RAW
+            elif alone and line.endswith("--"):
+                    self.mode = Mode.DEL
             elif self.evaluate(line):
                 line = self.transform(line)
                 output.append(line)

@@ -23,9 +23,18 @@ def insert_remote_url(content: str, remote_url: Optional[str]) -> str:
         return content
     if not remote_url.endswith("/"):
         remote_url += "/"
-    regex = r"\[(.*?)\]\((\s*?)([^#:\s]*?)(\s*?)\)"
+
+    #trocando todas as imagens com link local
+    regex = r"!\[(.*?)\]\((\s*?)([^#:\s]*?)(\s*?)\)"
+    subst = "![\\1](" + remote_url + "\\3)"
+    result = re.sub(regex, subst, content, 0)
+    content = result
+
+    #trocando todos os links locais cujo conteudo nao seja vazio
+    regex = r"\[(.+?)\]\((\s*?)([^#:\s]*?)(\s*?)\)"
     subst = "[\\1](" + remote_url + "\\3)"
-    result = re.sub(regex, subst, content, 0, re.MULTILINE)
+    result = re.sub(regex, subst, content, 0)
+
     return result
 
 # cria o arquivo readme refazendo os links para ficarem remotos para o moodle
