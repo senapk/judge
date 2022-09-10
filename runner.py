@@ -38,10 +38,14 @@ def main():
         discp = "fup"
         if os.path.exists(".discp.txt"):
             discp = open(".discp.txt").read().split("\n")[0]
-        print("Problem " + label + " not found, creating...")
-        subprocess.run([tk_path, "down", discp, label])
+        print("Loading problem " + label + " ...")
+        print("Choose extension [ cpp | c | js | ts | py | java ]: ", end="")
+        ext = input()
+        if ext.startswith("."):
+            ext = ext[1:]
+        subprocess.run([tk_path, "down", discp, label, ext])
     else:
-        print("Problem " + label + " found, running")
+        print("Running problem " + label + " ...")
         tk_config = ".tk.cfg"
         param = []
         if os.path.exists(tk_config):
