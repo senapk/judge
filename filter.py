@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from curses.ascii import isupper
 import os
 import argparse
 import enum
@@ -13,9 +14,10 @@ class Mode(enum.Enum):
     DEL = 3
 
 class Filter:
-    def __init__(self):
+    def __init__(self, cpp_mode: bool):
         self.mode = Mode.RAW
         self.level = 1
+        self.cpp_mode = cpp_mode
 
     # decide se a linha deve entrar no texto
     def evaluate(self, line: str):
@@ -36,11 +38,23 @@ class Filter:
             return line
         if line == "//":
             return ""
-        return line.replace("){", ") {")\
+        line = line.replace("){", ") {")\
                     .replace("):",   ") :")\
-                    .replace(") :",   ") {")\
-                    .replace(") const {", ") const { // todo")\
-                    .replace(") {", ") { // todo ")
+                    .replace(") :",   ") {")
+        if self.cpp_mode:
+            aux = line;
+            while aux.startswith("    "):
+                aux = aux[4:]
+            if not (aux == "" or aux[0].isupper() or 
+                    aux.startswith("void") or 
+                    aux.startswith("int") or 
+                    aux.startswith("~")):
+                # adding default return
+                comp = "{\n" + (self.level + 1) * "    " + "return {}; // todo"
+                line = line.replace(") const {", ") const " + comp)\
+                                    .replace(") {", ") " + comp)
+                return line
+        return line.replace(") const {", ") const { // todo").replace(") {", ") { // todo")
 
     def process(self, content: str) -> str:
         lines = content.split("\n")
@@ -87,7 +101,7 @@ def main():
 
     success, content = open_file(args.file)
     if success:
-        content = Filter().process(content)
+        content = Filter(args.file.endswith(".cpp")).process(content)
         if args.output:
             if os.path.isfile(args.output):
                 old = open(args.output).read()
