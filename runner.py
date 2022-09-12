@@ -200,11 +200,9 @@ def main():
         elif cmd == "d" or cmd == "down":
             last_cmd = action_down(ui_list, config["DEFAULT"]["base"])
             config["DEFAULT"]["last_cmd"] = last_cmd
-            break
         elif cmd == "r" or cmd == "run":
             last_cmd = action_run(ui_list, config["DEFAULT"]["mark"], config["DEFAULT"]["view"], config["DEFAULT"]["term"])
             config["DEFAULT"]["last_cmd"] = last_cmd
-            break
         else:
             print("Invalid command")
 
