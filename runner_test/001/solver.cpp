@@ -9,23 +9,24 @@ struct Calculator {
     float display;
 
     //Inicia os atributos, battery e display começam com o zero.
-    Calculator(int batteryMax) { // todo 
+    Calculator(int batteryMax) { // todo
     }
 
     //Aumenta a bateria, porém não além do máximo.
-    void chargeBattery(int value) { // todo  
+    void chargeBattery(int value) { // todo 
     }
 
     //Tenta gastar uma unidade da bateria e emite um erro se não conseguir.
-    bool useBattery() { // todo  
+    bool useBattery() {
+        return {}; // todo 
     }
 
     //Se conseguir gastar bateria, armazene a soma no atributo display.
-    void sum(int a, int b) { // todo  
+    void sum(int a, int b) { // todo 
     }
 
     //Se conseguir gastar bateria e não for divisão por 0.
-    void division(int num, int den) { // todo 
+    void division(int num, int den) { // todo
     }
 
     //Retorna o conteúdo do display com duas casas decimais.
