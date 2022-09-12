@@ -47,7 +47,6 @@ class Filter:
                 aux = aux[4:]
             if not (aux == "" or aux[0].isupper() or 
                     aux.startswith("void") or 
-                    aux.startswith("int") or 
                     aux.startswith("~")):
                 # adding default return
                 comp = "{\n" + (self.level + 1) * "    " + "return {}; // todo"
