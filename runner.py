@@ -159,6 +159,17 @@ def validate_config(config):
         return False
     return True
 
+def print_help():
+    print("Just write the letter of the option you want to choose.")
+    print("h ou help: print this help")
+    print("b ou base: change discipline database")
+    print("t ou term: change terminal size to show diff errors")
+    print("v ou view: change view mode between up_down or side_by_side")
+    print("m ou mark: change rendering mode between hide or show white spaces")
+    print("d ou down: download a problem from the database using label and extension")
+    print("r ou run: run a problem you have downloaded")
+    print("e ou end: exit the program")
+
 def main():
     default_config_file = ".config.ini"
     cls()
@@ -184,6 +195,8 @@ def main():
 
         if cmd == "e" or cmd == "end":
             break
+        elif cmd == "h" or cmd == "help":
+            print_help()
         elif cmd == "b" or cmd == "base":
             value: str = choose_base(ui_list)
             config["DEFAULT"]["base"] = value
