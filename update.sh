@@ -15,11 +15,12 @@ md=~/arcade/Readme.md
 rm -f $rm
 wget https://raw.githubusercontent.com/senapk/indexer/master/runner.md -O $md
 
+up=~/arcade/.bin/update.sh
+wget https://raw.githubusercontent.com/senapk/indexer/master/update.sh -O $up
+
 nix=~/arcade/replit.nix
 wget https://raw.githubusercontent.com/senapk/indexer/master/replit.nix -O $nix
 
 cfg=~/arcade/.replit
 wget https://raw.githubusercontent.com/senapk/indexer/master/replit -O $cfg
 
-up=~/arcade/.bin/update.sh
-wget https://raw.githubusercontent.com/senapk/indexer/master/update.sh -O $up
