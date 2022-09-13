@@ -20,3 +20,6 @@ wget https://raw.githubusercontent.com/senapk/indexer/master/replit.nix -O $nix
 
 cfg=~/arcade/.replit
 wget https://raw.githubusercontent.com/senapk/indexer/master/replit -O $cfg
+
+up=~/arcade/.bin/update.sh
+wget https://raw.githubusercontent.com/senapk/indexer/master/update.sh -O $up
