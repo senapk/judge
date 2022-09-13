@@ -34,23 +34,6 @@ def validate_label(label):
             return False
     return True
 
-# def ask_and_load_label():
-#     last_label_file = ".label.txt"
-#     last_label = ""
-#     if os.path.exists(last_label_file):
-#         last_label = open(last_label_file).read()
-    
-#     label = input("label(" + last_label + "): ")
-#     if label == "":
-#         label = last_label
-    
-#     elif not validate_label(label):
-#         print("view: label devem ser 3 números: ")
-#         return ask_and_load_label()
-
-#     open(last_label_file, "w").write(label)
-#     return label
-
 def choose_label(label = ""):
     if validate_label(label):
         return label
@@ -71,9 +54,6 @@ def action_down(ui_list: List[str], base: str) -> str:
     print("{} {} {}".format(label, ext, base))
     subprocess.run([tk_path, "down", base, label, ext])
     return "down" + " " + label + " " + ext
-
-
-
 
 def action_run(ui_list, mark_mode, view_mode, term_size) -> str:
     label = "" if len(ui_list) < 2 else ui_list[1]
@@ -160,15 +140,16 @@ def validate_config(config):
     return True
 
 def print_help():
-    print("Just write the letter of the option you want to choose.")
-    print("h ou help: print this help")
-    print("b ou base: change discipline database")
-    print("t ou term: change terminal size to show diff errors")
-    print("v ou view: change view mode between up_down or side_by_side")
-    print("m ou mark: change rendering mode between hide or show white spaces")
-    print("d ou down: download a problem from the database using label and extension")
-    print("r ou run: run a problem you have downloaded")
-    print("e ou end: exit the program")
+    print("Digite a letra ou o comando e aperte enter.")
+    print("h ou help: mostra esse help.")
+    print("b ou base: muda a base de dados entre as disciplinas.")
+    print("t ou term: muda a largura do terminal utilizado para mostrar os erros.")
+    print("v ou view: alterna o modo de visualização de erros entre up_down e lado_a_lado.")
+    print("m ou mark: show mostra os whitespaces e hide os esconde.")
+    print("d ou down: faz o download do problema utilizando o label e a extensão.")
+    print("r ou run : roda o problema utilizando sua solução contra os testes.")
+    print("e ou end : termina o programa.")
+    print("Na linha de execução já aparece o último comando entre (), para reexecutar basta apertar enter.")
 
 def main():
     default_config_file = ".config.ini"
