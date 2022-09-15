@@ -48,8 +48,10 @@ class Filter:
                 # adding default return
                 comp = "{\n" + (self.level + 1) * "    " + "return {}; // todo"
                 line = line.replace(") const {", ") const " + comp)\
-                                    .replace(") {", ") " + comp)
+                            .replace(") {", ") " + comp);
                 return line
+            else:
+                return line.replace("):", ") :").replace(") :", ") { //todo")
         return line.replace(" {", " { //todo");
 
     def process(self, content: str) -> str:
