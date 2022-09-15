@@ -38,9 +38,6 @@ class Filter:
             return line
         if line == "//":
             return ""
-        line = line.replace("){", ") {")\
-                    .replace("):",   ") :")\
-                    .replace(") :",   ") {")
         if self.cpp_mode:
             aux = line;
             while aux.startswith("    "):
@@ -53,7 +50,7 @@ class Filter:
                 line = line.replace(") const {", ") const " + comp)\
                                     .replace(") {", ") " + comp)
                 return line
-        return line.replace(") const {", ") const { // todo").replace(") {", ") { // todo")
+        return line.replace(" {", " { //todo");
 
     def process(self, content: str) -> str:
         lines = content.split("\n")

@@ -1,5 +1,5 @@
 run = "tk loop"
-hidden = ["main", "**/*.o", "**/*.d", ".ccls-cache", "Makefile", ".*", "alias.sh"]
+hidden = ["main", "**/*.o", "**/*.d", ".ccls-cache", "Makefile", ".*", "alias.sh", "**/__*"]
 entrypoint = "Readme.md"
 onBoot="update.sh"
 
