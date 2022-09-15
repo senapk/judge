@@ -18,27 +18,33 @@ import subprocess
 from subprocess import PIPE
 
 # processa o conteúdo trocando os links locais para links remotos utilizando a url remota
-def insert_remote_url(content: str, remote_url: Optional[str]) -> str:
+def insert_remote_url(content: str, remote_url: Optional[str], remote_folder: str) -> str:
     if remote_url is None:
         return content
     if not remote_url.endswith("/"):
         remote_url += "/"
+    if not remote_folder.endswith("/"):
+        remote_folder += "/"
 
     #trocando todas as imagens com link local
     regex = r"!\[(.*?)\]\((\s*?)([^#:\s]*?)(\s*?)\)"
     subst = "![\\1](" + remote_url + "\\3)"
     result = re.sub(regex, subst, content, 0)
-    content = result
+
+
+    regex = r"\[(.+?)\]\((\s*?)([^#:\s]*?)(\s*?/)\)"
+    subst = "[\\1](" + remote_folder + "\\3)"
+    result = re.sub(regex, subst, result, 0)
 
     #trocando todos os links locais cujo conteudo nao seja vazio
     regex = r"\[(.+?)\]\((\s*?)([^#:\s]*?)(\s*?)\)"
     subst = "[\\1](" + remote_url + "\\3)"
-    result = re.sub(regex, subst, content, 0)
+    result = re.sub(regex, subst, result, 0)
 
     return result
 
 # cria o arquivo readme refazendo os links para ficarem remotos para o moodle
-def make_readme_remote_newtitle(source_file: str, output_file: str, remote: str, hook: str) -> None:
+def make_readme_remote_newtitle(source_file: str, output_file: str, remote: str, remote_folder: str, hook: str) -> None:
     content = open(source_file).read() # pega dados do arquivo readme de origem
     lines = content.split("\n")
     header = lines[0]
@@ -47,7 +53,7 @@ def make_readme_remote_newtitle(source_file: str, output_file: str, remote: str,
     words = ["## @" + hook] + words
     lines[0] = " ".join(words)
     content = "\n".join(lines)
-    content = insert_remote_url(content, remote + hook)
+    content = insert_remote_url(content, remote + hook, remote_folder + hook)
     open(output_file, "w").write(content)
 
 
@@ -61,10 +67,11 @@ def main():
 
     args = parser.parse_args()
     remote = "https://raw.githubusercontent.com/" + args.user + "/" + args.repo + "/master/base/"
+    remote_folder = "https://github.com/" + args.user + "/" + args.repo + "/tree/master/base/"
 
     abs_path = os.path.abspath(args.source_file)
     hook = abs_path.split(os.sep)[-2]
-    make_readme_remote_newtitle(args.source_file, args.output_file, remote, hook)
+    make_readme_remote_newtitle(args.source_file, args.output_file, remote, remote_folder, hook)
 
     print("Remote created for " + hook)
 
