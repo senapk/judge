@@ -1,26 +1,4 @@
 #!/bin/bash
-
-# baixando tk
-tk=~/arcade/.bin/tk.py
-rm -f $tk
-wget https://raw.githubusercontent.com/senapk/tk/master/tk.py -O $tk
-chmod +x $tk
-
-# baixando aux
-aux=~/arcade/.include/aux.hpp
-rm -f $aux
-wget https://raw.githubusercontent.com/senapk/cppaux/master/aux.hpp -O $aux
-
-md=~/arcade/Readme.md
-rm -f $rm
-wget https://raw.githubusercontent.com/senapk/indexer/master/runner.md -O $md
-
-up=~/arcade/.bin/update.sh
-wget https://raw.githubusercontent.com/senapk/indexer/master/update.sh -O $up
-
-nix=~/arcade/replit.nix
-wget https://raw.githubusercontent.com/senapk/indexer/master/replit.nix -O $nix
-
-cfg=~/arcade/.replit
-wget https://raw.githubusercontent.com/senapk/indexer/master/replit -O $cfg
+wget https://raw.githubusercontent.com/senapk/replit/master/update.sh -O /home/runner/${REPL_SLUG}/.bin/update.sh 
+/home/runner/${REPL_SLUG}/.bin/update.sh
 
