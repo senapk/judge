@@ -21,7 +21,7 @@ local_script=local.sh
 
 # creating remote readme
 rm_readme=.cache/Readme.md
-make_readme "$user" "$repo" "Readme.md" "$rm_readme"
+make_hook_remote -i "Readme.md" -o "$rm_readme"
 
 # building description
 description=.cache/q.html
