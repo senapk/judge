@@ -41,7 +41,7 @@ def main():
     dir2 = ".cache/mapi.json"
     [path, result] = check_rebuild(dir1, dir2)
     if result:
-        print("changes found in", path)
+        print(os.path.basename(os.path.abspath(path)) + ": Changes found")
         exit(0) # sucesso
     else:
         exit(1) # falha

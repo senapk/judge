@@ -36,15 +36,12 @@ def main():
     base = config["DEFAULT"]["base"]
 
     hook = os.path.basename(os.getcwd())
-
-    print(hook)
-
-    
+    remote = os.path.join(base, hook)
+   
     content = open(source).read()
     content = replace_title(content, hook)
     open(target, "w").write(content)
-
-    subprocess.run(["make_remote", user, repo, base, target, target])
+    subprocess.run(["make_remote", user, repo, remote, target, target])
 
 if __name__ == '__main__':
     try:

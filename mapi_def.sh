@@ -15,6 +15,9 @@ repo=$2
 
 check_rebuild || exit 0
 
+rm -rf .cache
+mkdir .cache
+
 # running local scripts
 local_script=local.sh
 [[ -f "$local_script" ]] && source "$local_script"
@@ -34,6 +37,11 @@ title=`head -1 "$rm_readme" | sed 's/[#^ ]* *//'`
 cases=.cache/q.tio
 sources=`find . -name "*.tio" -o -name "*.vpl"`
 [[ ! -f $cases ]] && tk build "$cases" $rm_readme $sources
+
+# build filelist for tk down
+# remove .cache .vscode, solver.* Solver.* _*
+filelist=.cache/filelist.txt
+du -ah | cut -f2 | sed '/\.cache/d;/\.vscode/d;/solver\./d;/Solver\./d;/\/_/d;/\./!d' | cut -c 3- > "$filelist"
 
 # gerando o arquivo final
 output=./.cache/mapi.json

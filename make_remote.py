@@ -35,9 +35,8 @@ def __replace_remote(content: str, remote_url: str, remote_folder: str) -> str:
     return result
 
 def replace_remote(content: str, user: str, repo: str, path: str):
-    remote_raw    = os.path.normpath(os.path.join("https://raw.githubusercontent.com", user, repo, "master"     , path))
-    remote_folder = os.path.normpath(os.path.join("https://github.com/"              , user, repo, "tree/master", path))
-
+    remote_raw    = os.path.join("https://raw.githubusercontent.com", user, repo, "master"     , path)
+    remote_folder = os.path.join("https://github.com/"              , user, repo, "tree/master", path)
     return __replace_remote(content, remote_raw, remote_folder)
 
 def main():
@@ -56,7 +55,7 @@ def main():
     content = replace_remote(content, args.user, args.repo, args.base)
     open(args.output_file, "w").write(content)
     
-    print("Remote Readme created for " + os.path.join(args.base, args.output_file))
+    print("    Remote Readme created for " + os.path.join(args.base, args.output_file))
 
 if __name__ == '__main__':
     try:

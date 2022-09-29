@@ -63,6 +63,6 @@ if desc_file is None:
     desc_file = temp_dir + "/q.html"
 
 generate_html(args.mdfile, desc_file, True)
-print("Html created for", args.mdfile)
+print("    Html created for", args.mdfile)
 if args.output is None:
     print(open(desc_file).read())
