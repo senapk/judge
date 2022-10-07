@@ -9,6 +9,22 @@ from typing import Optional, List, Dict
 from os.path import join, isdir, isfile, getmtime
 
 
+class MDID:
+    def generate(title: Optional[str]) -> str:
+        if title is None:
+            return ""
+        title = title.lstrip(" #").rstrip()
+        title = title.lower()
+        out = ''
+        for c in title:
+            if c == ' ' or c == '-':
+                out += '-'
+            elif c == '_':
+                out += '_'
+            elif c.isalnum():
+                out += c
+        return out
+
 class Item:
     def __init__(self, base: str, hook: str, header: str):
         self.base = base
@@ -81,6 +97,7 @@ class LineFormatter:
         tags = [word for word in words if word.startswith("#") and len(word) != word.count('#')]
         title = " ".join([word for word in words if not word.startswith("#")])
         line = '- ['
+        idlink = MDID.generate(header)
         if not self.unlabel:
             line += '@' + hook + ' '
         line += title
@@ -101,10 +118,11 @@ class LineFormatter:
         words = header.split(" ")
         title = " ".join([word for word in words if not word.startswith("#")])
         title, description = title.split("&", 1) if "&" in title else (title, "")
-        
+        mdlink = MDID.generate(header)
+
         figura = get_thumb_path(self.base_path, hook)
-        readme = Manual.join([self.base_path, hook, 'Readme.md'])
-        line = "![](" + figura + ")" + " | " + "[@" + hook + " " + title + "](" + readme + ")"
+        readme = Manual.join([self.base_path, hook, 'Readme.md']) + "#" + mdlink
+        line = "![_](" + figura + ")" + " | " + "[@" + hook + " " + title + "](" + readme + ")"
         if self.description:
             line += " | " + description
         return line
@@ -168,6 +186,8 @@ def get_cover_path(base_path: str, hook: str) -> str:
 def make_thumbs(base_path: str):
     hook_list = sorted([hook for hook in os.listdir(base_path) if os.path.isdir(join(base_path, hook))])
     for hook in hook_list:
+        if hook.startswith("_"):
+            continue
         hook_path = join(base_path, hook)
         if not isdir(hook_path):
             continue

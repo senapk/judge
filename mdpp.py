@@ -6,7 +6,11 @@ import os
 import argparse
 import enum
 from typing import Optional
-from filter import Filter, Tuple
+import subprocess
+
+class Action(enum.Enum):
+    RUN = 1
+    CLEAN = 2
 
 class TocMaker:
     @staticmethod
@@ -58,71 +62,73 @@ class TocMaker:
             level = (TocMaker.__get_level(line) - 1) - min_level
             if level < 0:
                 continue
-            text = "    " * level + "- [" + TocMaker.__get_content(line) + "](#" + TocMaker.__get_md_link(line) + ")"
+            text = "  " * level + "- [" + TocMaker.__get_content(line) + "](#" + TocMaker.__get_md_link(line) + ")"
             toc_lines.append(text)
         toc_text = "\n".join(toc_lines)
         return toc_text
 
 class Toc:
     @staticmethod
-    def execute(content: str) -> str:
-        new_toc = TocMaker.execute(content)
+    def execute(content: str, action: Action = Action.RUN) -> str:
         regex = r"\[\]\(toc\)\n" + r"(.*?)"+ r"\[\]\(toc\)"
-        subst = r"[](toc)\n\n" + new_toc + r"\n[](toc)"
+        if action == Action.RUN:
+            new_toc = TocMaker.execute(content)
+            subst = r"[](toc)\n\n" + new_toc + r"\n[](toc)"
+        else:
+            subst = r"[](toc)\n[](toc)"
         return re.sub(regex, subst, content, 0, re.MULTILINE | re.DOTALL)
 
 
 
 class Load:
     @staticmethod
-    def execute(content: str) -> str:
+    def execute(content: str, action: Action = Action.RUN) -> str:
         new_content = ""
         last = 0
 
-        regex = r"\[\]\(load\)\[\]\((.*?)\)\n(.*?)\[\]\(load\)"
+        regex = r"\[\]\(load\)\[\]\((.+?)\)\[\]\((.*?)\)\n(.*?)\[\]\(load\)"
         matches = re.finditer(regex, content, re.MULTILINE | re.DOTALL)
         
         for match in matches:
             path = match.group(1)
+            tags = match.group(2)
+            words = tags.split(":")
+            fenced = "fenced" in words
+            words = [tag for tag in words if tag != "fenced"]
+            filter = "filter" in words
+            words = [tag for tag in words if tag != "filter"]
+            ext = os.path.splitext(path)[1][1:]
+            if len(words) > 0:
+                ext = words[0]
+
+
             new_content += content[last:match.start()] # inserindo texto entre matches
             last = match.end()
-            new_content += "[](load)[](" + path + ")\n"
-            if os.path.isfile(path):
-                data = open(path).read()
-                new_content += open(path).read()
-                if data[-1] != "\n":
-                    new_content += "\n"
-            else:
-                print("warning: file", path, "not found")
+            new_content += "[](load)[](" + path + ")[](" + tags + ")\n"
+            if action == Action.RUN:
+                if fenced:
+                    new_content += "\n```" + ext + "\n"
+                if os.path.isfile(path):
+                    if filter:
+                        output = subprocess.run(["filter", path], stdout=subprocess.PIPE)
+                        data = output.stdout.decode("utf-8")
+                        new_content += data
+                        if data[-1] != "\n":
+                            new_content += "\n"
+                    else:
+                        data = open(path).read()
+                        new_content += open(path).read()
+                        if data[-1] != "\n":
+                            new_content += "\n"
+                else:
+                    print("warning: file", path, "not found")
+                if fenced:
+                    new_content += "```\n\n"
             new_content += "[](load)"
         new_content += content[last:]
         return new_content
 
-class Filter:
-    @staticmethod
-    def execute(content: str) -> str:
-        new_content = ""
-        last = 0
 
-        regex = r"\[\]\(filter\)\[\]\((.*?)\)\n(.*?)\[\]\(filter\)"
-        matches = re.finditer(regex, content, re.MULTILINE | re.DOTALL)
-        
-        for match in matches:
-            path = match.group(1)
-            new_content += content[last:match.start()] # inserindo texto entre matches
-            last = match.end()
-            new_content += "[](filter)[](" + path + ")\n"
-            if os.path.isfile(path):
-                data = open(path).read()
-                filter = Filter()
-                new_content += filter.process(open(path).read())
-                if data[-1] != "\n":
-                    new_content += "\n"
-            else:
-                print("warning: file", path, "not found")
-            new_content += "[](filter)"
-        new_content += content[last:]
-        return new_content
             
 
 class Save:
@@ -168,23 +174,25 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('targets', metavar='T', type=str, nargs='*', help='Readmes or folders')
     parser.add_argument('--quiet', '-q', action="store_true", help='quiet mode')
+    parser.add_argument('--clean', '-c', action="store_true", help='clean mode')
     args = parser.parse_args()
 
     if len(args.targets) == 0:
         args.targets.append(".")
     
+    action = Action.RUN if not args.clean else Action.CLEAN
+
     for target in args.targets:
         path, folder = Main.fix_path(target)
         result, original = Main.open_file(path)
         if not result:
             continue
         updated = original
-        updated_toc = Toc.execute(updated)
+        updated_toc = Toc.execute(updated, action)
         if updated != updated_toc:
             print("toc updated:", target)
             updated = updated_toc
-        updated = Load.execute(updated)
-        updated = Filter.execute(updated)
+        updated = Load.execute(updated, action)
         Save.execute(updated)
         
         if updated != original:
