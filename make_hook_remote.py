@@ -3,6 +3,7 @@
 
 #this script must run from inside hook
 import configparser
+from genericpath import isfile
 import os
 import subprocess
 import argparse
@@ -29,7 +30,13 @@ def main():
 
     config = configparser.ConfigParser()
 
-    config.read("../.database.cfg")
+    cfg = "../remote.cfg"
+
+    if not os.path.isfile(cfg):
+        print("no remote.cfg found")
+        return
+
+    config.read(cfg)
 
     user = config["DEFAULT"]["user"]
     repo = config["DEFAULT"]["rep"]

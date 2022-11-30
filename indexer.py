@@ -184,6 +184,9 @@ def get_cover_path(base_path: str, hook: str) -> str:
     return os.path.join(base_path, hook, "cover.jpg")
 
 def make_thumbs(base_path: str):
+    if not os.path.isdir(".thumbs"):
+        os.mkdir(".thumbs")
+
     hook_list = sorted([hook for hook in os.listdir(base_path) if os.path.isdir(join(base_path, hook))])
     for hook in hook_list:
         if hook.startswith("_"):

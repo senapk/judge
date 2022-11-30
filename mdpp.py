@@ -198,6 +198,7 @@ def main():
         if updated != original:
             with open(path, "w") as f:
                 f.write(updated)
+                print("mdpp updading", path)
 
 if __name__ == '__main__':
     main()

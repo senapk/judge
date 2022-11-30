@@ -26,9 +26,17 @@
 
 ```
 [](toc)
-
+toc será gerado aqui
 [](toc)
+
+[](load)[](diagrama.puml)[](plantuml:fenced:filter)
+carrega aqui o arquivo diagrama.puml
+colocando as crases triplas
+e rodando o filter
+[](load)
+
 ```
+
 
 
 ## filter
