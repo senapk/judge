@@ -5,7 +5,7 @@ import re
 import os
 import argparse
 import enum
-from typing import Optional
+from typing import Optional, List
 import subprocess
 
 class Action(enum.Enum):
@@ -81,6 +81,15 @@ class Toc:
 
 
 class Load:
+
+    @staticmethod
+    def extract_between_tags(content, tag):
+        regex = r"\[\[" + tag + r"\]\].*?^(.*)^[\S ]*\[\[" + tag + r"\]\]"
+        matches = re.finditer(regex, content, re.MULTILINE | re.DOTALL)
+        for match in matches:
+            return match.group(1)
+        return ""
+
     @staticmethod
     def execute(content: str, action: Action = Action.RUN) -> str:
         new_content = ""
@@ -92,28 +101,47 @@ class Load:
         for match in matches:
             path = match.group(1)
             tags = match.group(2)
-            words = tags.split(":")
-            fenced = "fenced" in words
-            words = [tag for tag in words if tag != "fenced"]
-            filter = "filter" in words
-            words = [tag for tag in words if tag != "filter"]
+            words: List[str] = tags.split(":")
+
+            fenced: List[str] = [tag for tag in words if tag.startswith("fenced")]
+            words = [tag for tag in words if not tag.startswith("fenced")]
+
+            filter: List[str] = [tag for tag in words if tag.startswith("filter")]
+            words = [tag for tag in words if not tag.startswith("filter")]
+
+            extract: List[str] = [tag for tag in words if tag.startswith("extract")]
+            words = [tag for tag in words if not tag.startswith("extract")]
+
+
             ext = os.path.splitext(path)[1][1:]
             if len(words) > 0:
                 ext = words[0]
+            if len(fenced) == 1:
+                parts = fenced[0].split("=")
+                if len(parts) == 2:
+                    ext = parts[1]
 
 
             new_content += content[last:match.start()] # inserindo texto entre matches
             last = match.end()
             new_content += "[](load)[](" + path + ")[](" + tags + ")\n"
+
+            # se não for run, deve limpar o conteúdo não inserindo os arquivos
             if action == Action.RUN:
-                if fenced:
+                if len(fenced) > 0:
                     new_content += "\n```" + ext + "\n"
                 if os.path.isfile(path):
-                    if filter:
+                    if len(filter) > 0:
                         output = subprocess.run(["filter", path], stdout=subprocess.PIPE)
                         data = output.stdout.decode("utf-8")
                         new_content += data
                         if data[-1] != "\n":
+                            new_content += "\n"
+                    elif len(extract) > 0:
+                        tag = extract[0].split("=")[1]
+                        data = Load.extract_between_tags(open(path).read(), tag)
+                        new_content += data
+                        if len(data) == 0 or data[-1] != "\n":
                             new_content += "\n"
                     else:
                         data = open(path).read()
@@ -125,6 +153,7 @@ class Load:
                 if fenced:
                     new_content += "```\n\n"
             new_content += "[](load)"
+        
         new_content += content[last:]
         return new_content
 
