@@ -35,8 +35,9 @@ def __replace_remote(content: str, remote_url: str, remote_folder: str) -> str:
     return result
 
 def replace_remote(content: str, user: str, repo: str, path: str):
-    remote_raw    = os.path.join("https://raw.githubusercontent.com", user, repo, "master"     , path)
-    remote_folder = os.path.join("https://github.com/"              , user, repo, "tree/master", path)
+    # remote_raw    = os.path.join("https://raw.githubusercontent.com", user, repo, "master"     , path)
+    remote_raw    = os.path.join("https://github.com/", user, repo, "blob/master", path)
+    remote_folder = os.path.join("https://github.com/", user, repo, "tree/master", path)
     return __replace_remote(content, remote_raw, remote_folder)
 
 def main():

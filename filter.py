@@ -20,7 +20,7 @@ class Filter:
         self.cpp_mode = cpp_mode
 
     # decide se a linha deve entrar no texto
-    def evaluate(self, line: str):
+    def evaluate_insert(self, line: str):
         if self.mode == Mode.DEL:
             return False
         if self.mode == Mode.RAW:
@@ -30,29 +30,24 @@ class Filter:
             return True
         margin = (self.level + 1) * "    "
         if line.startswith(margin):
-                return False
+            return False
+        if self.cpp_mode and line == "    }":
+            return False
         return True
 
+    # change to make in ADD mode
     def transform(self, line: str):
         if self.mode == Mode.RAW:
             return line
-        if line == "//":
-            return ""
+        # remove all left spaces from line
         if self.cpp_mode:
-            aux = line;
-            while aux.startswith("    "):
-                aux = aux[4:]
-            if not (aux == "" or aux[0].isupper() or 
-                    aux.startswith("void") or 
-                    aux.startswith("~")):
-                # adding default return
-                comp = "{\n" + (self.level + 1) * "    " + "return {}; // todo"
-                line = line.replace(") const {", ") const " + comp)\
-                            .replace(") {", ") " + comp);
+            if not line.startswith("    "):
                 return line
-            else:
-                return line.replace("):", ") :").replace(") :", ") { //todo")
-        return line.replace(" {", " { //todo");
+            if line.endswith(":"):
+                return line[:-1] + "{}"
+            if line.startswith("    ") and line.endswith(" {"):
+                return line + " return {}; }"
+        return line
 
     def process(self, content: str) -> str:
         lines = content.split("\n")
@@ -60,13 +55,13 @@ class Filter:
         for line in lines:
             alone = len(line.split(" ")) == 1
             if alone and line[-3:-1] == "++":
-                    self.mode = Mode.ADD
-                    self.level = int(line[-1])
+                self.mode = Mode.ADD
+                self.level = int(line[-1])
             elif alone and line.endswith("=="):
-                    self.mode = Mode.RAW
+                self.mode = Mode.RAW
             elif alone and line.endswith("--"):
-                    self.mode = Mode.DEL
-            elif self.evaluate(line):
+                self.mode = Mode.DEL
+            elif self.evaluate_insert(line):
                 line = self.transform(line)
                 output.append(line)
         return "\n".join(output)
