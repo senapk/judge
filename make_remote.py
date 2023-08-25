@@ -11,15 +11,17 @@ import subprocess
 from subprocess import PIPE
 
 # processa o conteúdo trocando os links locais para links remotos utilizando a url remota
-def __replace_remote(content: str, remote_url: str, remote_folder: str) -> str:
-    if not remote_url.endswith("/"):
-        remote_url += "/"
+def __replace_remote(content: str, remote_raw: str, remote_view: str, remote_folder: str) -> str:
+    if not remote_raw.endswith("/"):
+        remote_raw += "/"
+    if not remote_view.endswith("/"):
+        remote_view += "/"
     if not remote_folder.endswith("/"):
         remote_folder += "/"
 
     #trocando todas as imagens com link local
     regex = r"!\[(.*?)\]\((\s*?)([^#:\s]*?)(\s*?)\)"
-    subst = "![\\1](" + remote_url + "\\3)"
+    subst = "![\\1](" + remote_raw + "\\3)"
     result = re.sub(regex, subst, content, 0)
 
 
@@ -29,16 +31,16 @@ def __replace_remote(content: str, remote_url: str, remote_folder: str) -> str:
 
     #trocando todos os links locais cujo conteudo nao seja vazio
     regex = r"\[(.+?)\]\((\s*?)([^#:\s]*?)(\s*?)\)"
-    subst = "[\\1](" + remote_url + "\\3)"
+    subst = "[\\1](" + remote_view + "\\3)"
     result = re.sub(regex, subst, result, 0)
 
     return result
 
 def replace_remote(content: str, user: str, repo: str, path: str):
-    # remote_raw    = os.path.join("https://raw.githubusercontent.com", user, repo, "master"     , path)
-    remote_raw    = os.path.join("https://github.com/", user, repo, "blob/master", path)
+    remote_raw    = os.path.join("https://raw.githubusercontent.com", user, repo, "master" , path)
+    remote_view    = os.path.join("https://github.com/", user, repo, "blob/master", path)
     remote_folder = os.path.join("https://github.com/", user, repo, "tree/master", path)
-    return __replace_remote(content, remote_raw, remote_folder)
+    return __replace_remote(content, remote_raw, remote_view, remote_folder)
 
 def main():
     parser = argparse.ArgumentParser()

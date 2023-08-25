@@ -102,9 +102,9 @@ class LineFormatter:
             line += '@' + hook + ' '
         line += title
         if self.root_target:
-            line += '](' + Manual.join([self.base_path, hook]) + ') '
+            line += '](' + Manual.join([self.base_path, hook]) + ')'
         else:
-            line += '](' + Manual.join([self.base_path, hook, 'Readme.md']) + ') '
+            line += '](' + Manual.join([self.base_path, hook, 'Readme.md']) + ')'
         extra = []
         if self.unlabel:
             extra.append('@' + hook)

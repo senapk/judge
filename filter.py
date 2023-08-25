@@ -44,9 +44,11 @@ class Filter:
             if not line.startswith("    "):
                 return line
             if line.endswith(":"):
-                return line[:-1] + "{}"
+                return line[:-1] + ";"
+            if line.endswith(" :"):
+                return line[:-2] + ";"
             if line.startswith("    ") and line.endswith(" {"):
-                return line + " return {}; }"
+                return line[:-2] + ";"
         return line
 
     def process(self, content: str) -> str:

@@ -36,7 +36,7 @@ title=`head -1 "$rm_readme" | sed 's/[#^ ]* *//'`
 # building tests if not found
 cases=.cache/q.tio
 sources=`find . -name "*.tio" -o -name "*.vpl"`
-[[ ! -f $cases ]] && tk build "$cases" $rm_readme $sources
+[[ ! -f $cases ]] && tko build "$cases" $rm_readme $sources
 
 # build filelist for tk down
 # remove .cache .vscode, solver.* Solver.* _*
