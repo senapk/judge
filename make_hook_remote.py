@@ -3,20 +3,23 @@
 
 #this script must run from inside hook
 import configparser
-from genericpath import isfile
+from typing import List
 import os
 import subprocess
 import argparse
 
-def replace_title(content: str, hook: str) -> str:
-    lines = content.split("\n")
-    header = lines[0]
-    words = header.split(" ")
-    del words[0]
-    words = ["## @" + hook] + words
-    lines[0] = " ".join(words)
-    content = "\n".join(lines)
-    return content
+# def replace_title(lines: List[str], hook: str) -> List[str]:
+#     header = lines[0]
+#     words = header.split(" ")
+#     del words[0]
+#     words = ["# @" + hook] + words
+#     lines[0] = " ".join(words)
+#     return lines
+
+def insert_online_link(lines: List[str], online: str) -> List[str]:
+    lines.insert(1, "\nVeja a versão online: [aqui.](" + online + ")")
+    
+    return lines
 
 def main():
     parser = argparse.ArgumentParser()
@@ -30,7 +33,7 @@ def main():
 
     config = configparser.ConfigParser()
 
-    cfg = "../remote.cfg"
+    cfg = "../../remote.cfg"
 
     if not os.path.isfile(cfg):
         print("no remote.cfg found")
@@ -45,9 +48,11 @@ def main():
     hook = os.path.basename(os.getcwd())
     remote = os.path.join(base, hook)
    
-    content = open(source).read()
-    content = replace_title(content, hook)
-    open(target, "w").write(content)
+    lines = open(source).read().split("\n")
+    # lines = replace_title(lines, hook)
+    online_readme_link = os.path.join("https://github.com", user, repo, "blob/master", remote, "Readme.md")
+    lines = insert_online_link(lines, online_readme_link)
+    open(target, "w").write("\n".join(lines))
     subprocess.run(["make_remote", user, repo, remote, target, target])
 
 if __name__ == '__main__':

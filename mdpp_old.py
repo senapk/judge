@@ -5,7 +5,7 @@ import re
 import os
 import argparse
 import enum
-from typing import Optional, List, Tuple
+from typing import Optional, List
 import subprocess
 
 class Action(enum.Enum):
@@ -47,35 +47,23 @@ class TocMaker:
         regex = r"^```.*?```\n"
         return re.sub(regex, "", content, 0, re.MULTILINE | re.DOTALL)
 
-    # return List[level, "[text](link)"]
+
     @staticmethod
-    def __extract_entries(content: str) -> List[Tuple[int, str]]:
+    def execute(content: str) -> str:
         content = TocMaker.__remove_code_fences(content)
 
         lines = content.split("\n")
         disable_tag = "[]()"
         lines = [line for line in lines if TocMaker.__only_hashtags(line.split(" ")[0]) and line.find(disable_tag) == -1]
 
-        entries: List[Tuple[int, str]] = []
+        min_level = 1
+        toc_lines = []
         for line in lines:
-            level = TocMaker.__get_level(line)
-            text = "[" + TocMaker.__get_content(line) + "](#" + TocMaker.__get_md_link(line) + ")"
-            entries.append((level, text))
-        return entries
-
-    
-    @staticmethod
-    def execute_toch(content: str) -> str:
-        entries = TocMaker.__extract_entries(content)
-        links = [b for (a, b) in entries if a == 2]
-        table = ["--" for _ in links]
-        return " | ".join(links) + "\n" + " | ".join(table)
-        
-
-    @staticmethod
-    def execute_toc(content: str) -> str:
-        entries = TocMaker.__extract_entries(content)
-        toc_lines = ["  " * (level - 2) + "- " + link for (level, link) in entries if level > 1]
+            level = (TocMaker.__get_level(line) - 1) - min_level
+            if level < 0:
+                continue
+            text = "  " * level + "- [" + TocMaker.__get_content(line) + "](#" + TocMaker.__get_md_link(line) + ")"
+            toc_lines.append(text)
         toc_text = "\n".join(toc_lines)
         return toc_text
 
@@ -84,22 +72,12 @@ class Toc:
     def execute(content: str, action: Action = Action.RUN) -> str:
         regex = r"<!-- toc -->\n" + r"(.*?)"+ r"<!-- toc -->"
         if action == Action.RUN:
-            new_toc = TocMaker.execute_toc(content)
+            new_toc = TocMaker.execute(content)
             subst = r"<!-- toc -->\n" + new_toc + r"\n<!-- toc -->"
         else:
             subst = r"<!-- toc -->\n<!-- toc -->"
         return re.sub(regex, subst, content, 0, re.MULTILINE | re.DOTALL)
 
-class Toch:
-    @staticmethod
-    def execute(content: str, action: Action = Action.RUN) -> str:
-        regex = r"<!-- toch -->\n" + r"(.*?)"+ r"<!-- toch -->"
-        if action == Action.RUN:
-            new_toc = TocMaker.execute_toch(content)
-            subst = r"<!-- toch -->\n" + new_toc + r"\n<!-- toch -->"
-        else:
-            subst = r"<!-- toch -->\n<!-- toch -->"
-        return re.sub(regex, subst, content, 0, re.MULTILINE | re.DOTALL)
 
 
 class Load:
@@ -117,7 +95,7 @@ class Load:
         new_content = ""
         last = 0
 
-        regex = r"<!-- load (\S*?) (\S*?) -->\n(.*?)<!-- load -->"
+        regex = r"\[\]\(load\)\[\]\((.+?)\)\[\]\((.*?)\)\n(.*?)\[\]\(load\)"
         matches = re.finditer(regex, content, re.MULTILINE | re.DOTALL)
         
         for match in matches:
@@ -146,8 +124,7 @@ class Load:
 
             new_content += content[last:match.start()] # inserindo texto entre matches
             last = match.end()
-            # new_content += "[](load)[](" + path + ")[](" + tags + ")\n"
-            new_content += "<!-- load " + path + " " + tags + " -->\n"
+            new_content += "[](load)[](" + path + ")[](" + tags + ")\n"
 
             # se não for run, deve limpar o conteúdo não inserindo os arquivos
             if action == Action.RUN:
@@ -175,7 +152,7 @@ class Load:
                     print("warning: file", path, "not found")
                 if fenced:
                     new_content += "```\n\n"
-            new_content += "<!-- load -->"
+            new_content += "[](load)"
         
         new_content += content[last:]
         return new_content
@@ -241,7 +218,6 @@ def main():
             continue
         updated = original
         updated_toc = Toc.execute(updated, action)
-        updated_toc = Toch.execute(updated_toc, action)
         if updated != updated_toc:
             print("toc updated:", target)
             updated = updated_toc

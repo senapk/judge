@@ -6,9 +6,6 @@ rename=""   #if defined, the required file will be renamed in moodle
 upload=""   #vpl scripts like vpl_evaluate.cpp
 keep=""     #problem files like main.cpp lib.hpp
 
-user=$1
-repo=$2
-
 # create dir if not found
 [[ ! -d .cache ]] &&  mkdir .cache
 
