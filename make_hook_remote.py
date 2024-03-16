@@ -8,17 +8,15 @@ import os
 import subprocess
 import argparse
 
-# def replace_title(lines: List[str], hook: str) -> List[str]:
-#     header = lines[0]
-#     words = header.split(" ")
-#     del words[0]
-#     words = ["# @" + hook] + words
-#     lines[0] = " ".join(words)
-#     return lines
+def insert_online_link(lines: List[str], online: str, tkodown: str) -> List[str]:
 
-def insert_online_link(lines: List[str], online: str) -> List[str]:
-    lines.insert(1, "\nVeja a versão online: [aqui.](" + online + ")")
-    
+    text = "\n- Veja a versão online: [aqui.](" + online + ")\n"
+    text += "- Para programar na sua máquina (local/virtual) use:\n"
+    text += "  - `" + tkodown + "`\n"
+    text += "- Se não tem o `tko`, instale pelo [LINK](https://github.com/senapk/tko#tko).\n\n---"
+
+    lines.insert(1, text)
+
     return lines
 
 def main():
@@ -51,7 +49,9 @@ def main():
     lines = open(source).read().split("\n")
     # lines = replace_title(lines, hook)
     online_readme_link = os.path.join("https://github.com", user, repo, "blob/master", remote, "Readme.md")
-    lines = insert_online_link(lines, online_readme_link)
+    hook = remote.split("/")[-1]
+    tkodown = "tko down " + user[6:] + " " + hook
+    lines = insert_online_link(lines, online_readme_link, tkodown)
     open(target, "w").write("\n".join(lines))
     subprocess.run(["make_remote", user, repo, remote, target, target])
 

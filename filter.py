@@ -9,15 +9,17 @@ from typing import Tuple
 
 
 class Mode(enum.Enum):
-    ADD = 1
-    RAW = 2
-    DEL = 3
+    ADD = 1 # inserir cortando por degrau
+    RAW = 2 # inserir tudo
+    DEL = 3 # apagar tudo
+    COM = 4 # inserir código removendo comentários
 
 class Filter:
-    def __init__(self, cpp_mode: bool):
+    def __init__(self, commentary_token):
         self.mode = Mode.RAW
+        self.backup_mode = Mode.RAW
         self.level = 1
-        self.cpp_mode = cpp_mode
+        self.com = commentary_token
 
     # decide se a linha deve entrar no texto
     def evaluate_insert(self, line: str):
@@ -25,38 +27,29 @@ class Filter:
             return False
         if self.mode == Mode.RAW:
             return True
-        # mode add
+        if self.mode == Mode.COM:
+            return True
         if line == "":
             return True
         margin = (self.level + 1) * "    "
         if line.startswith(margin):
             return False
-        if self.cpp_mode and line == "    }":
-            return False
-        return True
 
-    # change to make in ADD mode
-    def transform(self, line: str):
-        if self.mode == Mode.RAW:
-            return line
-        # remove all left spaces from line
-        if self.cpp_mode:
-            if not line.startswith("    "):
-                return line
-            if line.endswith(":"):
-                return line[:-1] + ";"
-            if line.endswith(" :"):
-                return line[:-2] + ";"
-            if line.startswith("    ") and line.endswith(" {"):
-                return line[:-2] + ";"
-        return line
+        return True
 
     def process(self, content: str) -> str:
         lines = content.split("\n")
         output = []
         for line in lines:
             alone = len(line.split(" ")) == 1
-            if alone and line[-3:-1] == "++":
+            two_words = len(line.strip().split(" ")) == 2
+            if self.mode == Mode.COM:
+                if not line.strip().startswith(self.com):
+                    self.mode = self.backup_mode
+            if two_words and line.endswith("@@") and self.mode == Mode.ADD:
+                self.backup_mode = self.mode
+                self.mode = Mode.COM
+            elif alone and line[-3:-1] == "++":
                 self.mode = Mode.ADD
                 self.level = int(line[-1])
             elif alone and line.endswith("=="):
@@ -64,7 +57,8 @@ class Filter:
             elif alone and line.endswith("--"):
                 self.mode = Mode.DEL
             elif self.evaluate_insert(line):
-                line = self.transform(line)
+                if self.mode == Mode.COM:
+                    line = line.replace(self.com + " ", "", 1)
                 output.append(line)
         return "\n".join(output)
 
@@ -96,7 +90,10 @@ def main():
 
     success, content = open_file(args.file)
     if success:
-        content = Filter(args.file.endswith(".cpp")).process(content)
+        com = "//"
+        if args.file.endswith(".py"):
+            com = "#"
+        content = Filter(com).process(content)
         if args.output:
             if os.path.isfile(args.output):
                 old = open(args.output).read()

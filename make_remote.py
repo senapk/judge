@@ -5,9 +5,6 @@ import re
 import os
 import argparse
 from typing import Optional
-
-
-import subprocess
 from subprocess import PIPE
 
 # processa o conteúdo trocando os links locais para links remotos utilizando a url remota
