@@ -1,7 +1,0 @@
-//--
-limpinho
-//==
-[[banana]]
-eh aqui
-entre bananas
-[[banana]]

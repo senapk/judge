@@ -101,6 +101,33 @@ class Toch:
             subst = r"<!-- toch -->\n<!-- toch -->"
         return re.sub(regex, subst, content, 0, re.MULTILINE | re.DOTALL)
 
+class Drafts:
+
+    @staticmethod
+    def load_drafts(readme_path):
+        folder = os.path.dirname(readme_path)
+        origin = os.path.join(folder, "src")
+        output = ""
+        if os.path.isdir(origin):
+            # create a markdown list os links with all files under .cache/src
+            entries = sorted(os.listdir(origin))
+            for lang in entries:
+                output += "- " + lang + "\n"
+                for file in sorted(os.listdir(os.path.join(origin, lang))):
+                    output += "  - [" + file + "](.cache/lang/" + lang + "/" + file + ")\n"
+
+        return output
+
+
+    @staticmethod
+    def execute(path, content: str, action: Action = Action.RUN) -> str:
+        regex = r"<!-- draft -->\n(.*?)<!-- draft -->"
+        if action == Action.RUN:
+            new_draft = Drafts.load_drafts(path)
+            subst = r"<!-- draft -->\n" + new_draft + r"\n<!-- draft -->"
+        else:
+            subst = r"<!-- draft -->\n<!-- draft -->"
+        return re.sub(regex, subst, content, 0, re.MULTILINE | re.DOTALL)
 
 class Load:
 
@@ -243,15 +270,16 @@ def main():
         updated_toc = Toc.execute(updated, action)
         updated_toc = Toch.execute(updated_toc, action)
         if updated != updated_toc:
-            print("toc updated:", target)
             updated = updated_toc
         updated = Load.execute(updated, action)
+        updated = Drafts.execute(target, updated, action)
         Save.execute(updated)
         
         if updated != original:
             with open(path, "w") as f:
                 f.write(updated)
-                print("mdpp updading", path)
+                hook = os.path.abspath(path).split(os.sep)[-2]
+                print(hook + " : mdpp updading")
 
 if __name__ == '__main__':
     main()

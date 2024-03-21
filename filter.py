@@ -7,7 +7,6 @@ import argparse
 import enum
 from typing import Tuple
 
-
 class Mode(enum.Enum):
     ADD = 1 # inserir cortando por degrau
     RAW = 2 # inserir tudo
@@ -15,11 +14,21 @@ class Mode(enum.Enum):
     COM = 4 # inserir código removendo comentários
 
 class Filter:
-    def __init__(self, commentary_token):
+    def __init__(self, filename):
         self.mode = Mode.RAW
         self.backup_mode = Mode.RAW
         self.level = 1
-        self.com = commentary_token
+        self.com = "//"
+        if filename.endswith(".py"):
+            self.com = "#"
+    
+    def init_raw(self):
+        self.mode = Mode.RAW
+        return self
+
+    def init_del(self):
+        self.mode = Mode.DEL
+        return self
 
     # decide se a linha deve entrar no texto
     def evaluate_insert(self, line: str):
@@ -46,7 +55,7 @@ class Filter:
             if self.mode == Mode.COM:
                 if not line.strip().startswith(self.com):
                     self.mode = self.backup_mode
-            if two_words and line.endswith("@@") and self.mode == Mode.ADD:
+            if two_words and line.endswith("$$") and self.mode == Mode.ADD:
                 self.backup_mode = self.mode
                 self.mode = Mode.COM
             elif alone and line[-3:-1] == "++":
@@ -61,6 +70,7 @@ class Filter:
                     line = line.replace(self.com + " ", "", 1)
                 output.append(line)
         return "\n".join(output)
+
 
 
 class Main:
@@ -90,10 +100,7 @@ def main():
 
     success, content = open_file(args.file)
     if success:
-        com = "//"
-        if args.file.endswith(".py"):
-            com = "#"
-        content = Filter(com).process(content)
+        content = Filter(args.file).process(content)
         if args.output:
             if os.path.isfile(args.output):
                 old = open(args.output).read()
