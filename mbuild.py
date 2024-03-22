@@ -14,6 +14,7 @@ from subprocess import PIPE
 import tempfile
 import json
 import enum
+import shutil
 
 class Log:
     verbose = False
@@ -437,6 +438,11 @@ class Action:
             os.makedirs(self.cache)
         return self
     
+    def recreate_cache(self):
+        shutil.rmtree(self.cache)
+        os.makedirs(self.cache)
+        return self
+    
     def check_rebuild(self):
         [_path, changes_found] = Check.check_rebuild(self.source, self.target)
         return changes_found
@@ -464,7 +470,7 @@ class Action:
             subprocess.run("bash " + local_sh, shell=True)
 
     def init_vpl(self):
-        self.vpl = JsonVPL(self.title, open(self.source_readme).read())
+        self.vpl = JsonVPL(self.title, open(self.description).read())
         self.vpl.set_cases(self.cases)
         if self.vpl.load_config_json(self.config_json, self.source):
             Log.write("Required ")
@@ -500,6 +506,7 @@ def main():
     if args.check and not action.check_rebuild():
         return
 
+    action.recreate_cache()
     Log.write(action.hook, ": Changes found [ ")
     action.remote()
     action.html()
