@@ -397,7 +397,7 @@ class Tree:
             text_extensions = [".md", ".c", ".cpp", ".h", ".hpp", ".py", ".java", ".js", ".ts", ".hs", ".txt"]
             pieces = source.split(os.sep)
             if len(pieces) >= 3:
-                if pieces[-3] == "lang":
+                if pieces[-3] == "src":
                     if pieces[-2] not in dict_tree:
                         dict_tree[pieces[-2]] = []
                     dict_tree[pieces[-2]].append(pieces[-1])
@@ -468,7 +468,7 @@ class Action:
         self.vpl.set_cases(self.cases)
         if self.vpl.load_config_json(self.config_json, self.source):
             Log.write("Required ")
-        if self.vpl.load_draft_tree(self.draft_tree, self.cache_src):
+        if self.vpl.load_draft_tree(self.draft_tree, norm_join(self.cache, self.cache_src)):
             Log.write("Drafts ")
         Log.write("] ")
 
